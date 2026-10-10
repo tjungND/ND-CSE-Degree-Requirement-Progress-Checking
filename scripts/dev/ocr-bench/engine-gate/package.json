@@ -1,0 +1,17 @@
+{
+  "name": "ocr-engine-gate",
+  "private": true,
+  "version": "1.0.0",
+  "description": "OFFLINE ONLY (transcript accuracy program, plan step 14, 2026-10-09): PaddleOCR PP-OCRv6_tiny measured against the shipped Tesseract pipeline on the OCR bench's degraded pages. Never installed by the root npm ci, the sheet-sync Action or the Pages deploy; the app does not import it. Models live outside the repo (~/degree-audit-samples/engine-gate-models/, fetch-models.mjs).",
+  "license": "SEE LICENSE IN ../../../../LICENSE.md",
+  "type": "module",
+  "scripts": {
+    "fetch-models": "node fetch-models.mjs",
+    "gate": "node --experimental-strip-types gate.mjs"
+  },
+  "dependencies": {
+    "onnxruntime-node": "1.30.0",
+    "onnxruntime-web": "1.30.0",
+    "paddleocr": "1.2.0"
+  }
+}

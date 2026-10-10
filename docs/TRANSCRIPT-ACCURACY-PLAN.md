@@ -916,3 +916,38 @@ Open issues (the DGS's are marked):
   tick box disabled, W-CL409 above the table) — a driver step and screenshots.
 - Batch C's OCR answers (numeric corrections beside the raw reading, the scanned-line image strip,
   scanner-embedded text layers as OCR-grade) belong to the OCR steps 2.5–2.7.
+
+### Engine gate (step 14) — done 2026-10-09 (branch `claude/policy-compliance-degree-engine-44a431`): measured offline, not adopted
+
+PaddleOCR PP-OCRv6_tiny, the §4.1 candidate, against the shipped Tesseract — offline only, in
+`scripts/dev/ocr-bench/engine-gate/` (its own `package.json`, git-ignored `node_modules/`; `fetch-models.mjs`
+puts the official Apache-2.0 ONNX models, pinned by revision and SHA-256, in
+`~/degree-audit-samples/engine-gate-models/`; `gate.mjs` the runner; `calibrate.mjs` the one height
+calibration). The runner reads the sign-off run's own page renders, runs the engine on onnxruntime-web
+(WebAssembly, one thread — the browser's mode) and feeds the app's `ocrPageLayout`, `layout.ts`, the parser and
+the bench's scorer, with Tesseract re-reading every page beside it; `src/` and the root `package.json` are
+untouched. Full method and boards: `docs/OCR-BENCHMARK.md` "Engine gate"; the DECISIONS row of this date.
+
+| level (62 seeds, 270 rows) | Tesseract row acc | PP-OCRv6_tiny | Δ | time × | false rows |
+|---|---|---|---|---|---|
+| L2 | 54.1 % | 68.9 % | +14.8 | 1.06 | 16 → 7 |
+| L3 | 41.5 % | 47.8 % | +6.3 | 1.10 | 19 → 7 |
+| L4 | 41.5 % | 38.9 % | −2.6 | 1.39 | 17 → 8 |
+| L5 | 58.1 % | 70.4 % | +12.2 | 1.32 | 21 → 6 |
+| **L2–L5** | 48.8 % | 56.5 % | **+7.7** (gate: ≥ +10) | 1.20 (per transcript, median 2.30) | 73 → 28 |
+| L2–L5 on `81b038d` (Batch C + step 2.5 (a)(b)(d)) | 55.2 % | 60.5 % | +5.3 | 1.23 | 65 → 33 |
+| L6-90 / L6-180 (not gated) | 65.2 / 64.4 % | 80.4 / 80.7 % | +15.2 / +16.3 | 1.13 / 1.14 | 23 → 8 / 15 → 6 |
+
+Verdict: not adopted — the accuracy half fails (+7.7 pooled; +5.3 on today's parser); the time half passes on
+the bench's pooled figure only. Its flag recall falls 64.6 → 21.4 % and its term cells 99.3 → 95.5 %. Runs:
+`~/degree-audit-samples/bench-out/engine-gate-20261009/` (`medium/`, `L3/`, `L4/`, `L6-90/`, `L6-180/`,
+`head-81b038d-L2/` … `-L5/`, `trial-calibration-L1/`). Not run: `npm run e2e` (the task's verification is
+`npx tsc --noEmit` and `npm test`; nothing the browser loads changed).
+
+Open issues:
+- **DGS (only if an engine is ever proposed again):** the 7.5 MB `public/ocr/` cap — PP-OCRv6_tiny on
+  onnxruntime-web is ≈ 20.7 MB.
+- The layout stage splits the insideND one-column table into two columns at its "Credit Hours" gutter under
+  Paddle's boxes at L2 and L5 (Tesseract's at L4) — plan step 2.5's ground, measurable with either engine.
+- A future engine needs a confidence rule of its own before the ⚠ flag can trust it (Paddle's probabilities
+  stay high on wrong rows).

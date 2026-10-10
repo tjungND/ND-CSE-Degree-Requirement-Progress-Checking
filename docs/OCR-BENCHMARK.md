@@ -237,3 +237,111 @@ stage, each page rendered at its scan's own resolution between 216 and 300 dpi, 
 The ten "regressions" the compare lists are all at L6: pages that read nothing before now read, and a few key/legend
 pages (Duke, Waterloo, UWO, HKU, the McGill course outline) yield one to six junk rows once turned — the same false
 rows those pages produce upright at L2/L5, now reachable. 113 improvements. Private seeds: none in this run.
+
+
+## Engine gate — PaddleOCR PP-OCRv6_tiny (plan step 14, 2026-10-09): measured offline, NOT adopted
+
+The gate (DECISIONS 2026-10-09, the program row): a second engine is adopted only if it reads ≥ 10 points
+more rows right (row accuracy) than the improved Tesseract on the office-scan, photocopy, stamped and phone
+levels (L2–L5) at ≤ 2× the seconds per page — and then passes the WebKit e2e, as a second opt-in whose
+sentence names its size. The one candidate under 20 MB the research named (§4.1 of the plan) was measured.
+
+**What ran.** `scripts/dev/ocr-bench/engine-gate/` — dev only, with its OWN `package.json` (the MIT
+`paddleocr` 1.2.0 runtime, `onnxruntime-web` and `onnxruntime-node` 1.30.0, MIT) and git-ignored
+`node_modules/`; the root `npm ci`, the sheet-sync Action and the Pages deploy never install it, and nothing
+in `src/` imports it. `fetch-models.mjs` downloads PaddlePaddle's own ONNX exports of PP-OCRv6_tiny
+(`PaddlePaddle/PP-OCRv6_tiny_det_onnx` 1.78 MB and `_rec_onnx` 4.46 MB, Apache-2.0, at pinned Hugging Face
+revisions, each checked against its pinned SHA-256 and size) into `~/degree-audit-samples/engine-gate-models/`
+— never into the repo — and cuts the recogniser's 6904-character list from its official `inference.yml`.
+`gate.mjs` reads, for each seed × level, the very page renders the shipped Tesseract read in the sign-off run
+`ocr-full-20261009/` (`<seed>/<level>/render/`, at the dpi its `results.json` records per page) →
+PP-OCRv6_tiny detection + recognition on **onnxruntime-web, WebAssembly, one thread** (the browser's runtime;
+GitHub Pages and the cse.nd.edu iframe give no cross-origin isolation, so no threads) → word boxes → page rows
+→ `src/transcript/ocr-lines.ts` `ocrPageLayout` (the SAME `blocksToRuns` word-space shares and `layout.ts`
+`pageLayout`) → the seed's parser → `score.mts` `scoreBench`. With `--tesseract` the shipped Tesseract
+(`ocr-run.mjs` `BASELINE_CONFIG`, orientation trial included) re-read every page in the same process, page by
+page beside Paddle, so the time ratio is taken under the same machine load; the code ran from a frozen
+`git archive` of `13f97e5` (the commit the sign-off ran on; `--code` and the transcript code's hash are in
+each `results.json`), and the same-session Tesseract reproduced the sign-off run's rows, matches and CER on
+all 372 seed × level documents.
+
+**The adapter** (engine output → what `ocrPageLayout` reads; each figure measured on L0 or L1, never on a
+scored level): a detected text line's CTC character positions give its words' extents — split at the spaces
+it emits and, where it emits none, at a gap of `GAP_SPLIT_PITCHES` = 3 character pitches (on the L0 page 1 of
+40 seeds, letters with no space between them sit 1.0 pitch apart at the median and 2.0 at the 99th
+percentile; a monospace "3.0    A" otherwise reads "3.0A"); a detected box is 1.33× the height of the
+Tesseract line on the same line at the median (1687 boxes, 30 seeds' L0 page 1, `calibrate.mjs`), so its height
+× `DETECTION_BOX_INK_SHARE` 0.75 is the line height the shares measure gaps against; the lines are grouped into
+page rows across the page's skew (the median slope of the wide boxes); every word is Unicode-NFKC-normalised
+(the multilingual character list emits "B⁺" for "B+"); and page 1's orientation trial keeps the shipped rule's
+shape on Paddle's mean character probability (floor 90, margin 5 — on L1 every upright page read ≥ 95.8 and
+every page turned 180° or 270° ≤ 64.2) with one addition the runtime forces: it turns a crop 1.5× taller than
+wide a quarter before reading it, so a page lying on its side reads every word right at its upright confidence
+(0° and 90° within 0.2 points at the median on L1) in a layout of columns that are really rows — a reading
+whose lines run down the page (`wideShare` < ½) never stands. The trial turned all 124 L6 documents the right
+way and no upright one, and read a turn at all on 3 of the 248 L2–L5 documents.
+
+**The numbers** (62 seeds: the generator PDFs and the public registrar PDFs — 26 positives with 270 expected
+rows, 36 negatives — 124 pages per level; `~/degree-audit-samples/bench-out/engine-gate-20261009/`
+`medium/` (L2 + L5), `L3/`, `L4/`, `L6-90/`, `L6-180/`; five runs side by side, each Paddle and Tesseract
+interleaved; row accuracy / rows found / false rows (negatives with any) / CER / s/page):
+
+| level | Tesseract (shipped) | PP-OCRv6_tiny | Δ row acc | time × |
+|---|---|---|---|---|
+| L2 office scan | 54.1 % / 88.1 % / 16 (7) / 37.2 % / 3.32 | **68.9 %** / 87.8 % / 7 (4) / 28.0 % / 3.50 | +14.8 | 1.06 |
+| L3 photocopy | 41.5 % / 81.9 % / 19 (8) / 42.2 % / 3.16 | 47.8 % / 83.3 % / 7 (4) / 34.1 % / 3.49 | +6.3 | 1.10 |
+| L4 stamped | 41.5 % / 86.3 % / 17 (8) / 32.0 % / 2.71 | 38.9 % / 86.3 % / 8 (4) / 29.8 % / 3.76 | −2.6 | 1.39 |
+| L5 phone photo | 58.1 % / 89.6 % / 21 (5) / 35.8 % / 2.69 | **70.4 %** / 87.8 % / 6 (3) / 28.5 % / 3.54 | +12.2 | 1.32 |
+| **L2–L5 pooled** | 48.8 % (527 / 1080 rows) / 86.5 % / 73 (28/144) / 36.8 % / 2.97 | 56.5 % (610 / 1080) / 86.3 % / 28 (15/144) / 30.1 % / 3.57 | **+7.7** | **1.20** |
+| L6-90 sideways (not gated) | 65.2 % / 90.0 % / 23 (7) / 29.4 % / 8.57 | 80.4 % / 89.6 % / 8 / 26.8 % / 9.70 | +15.2 | 1.13 |
+| L6-180 upside down (not gated) | 64.4 % / 90.7 % / 15 (8) / 29.5 % / 8.53 | 80.7 % / 90.0 % / 6 / 26.6 % / 9.69 | +16.3 | 1.14 |
+
+Pooled over L2–L5 beside that: exact documents 128 → 158 of 248, field accuracy 79.9 → 86.9 % (title 63.8 →
+77.4, credits 72.5 → 86.9, grade 73.3 → 84.0, term 99.3 → **95.5**, level 90.4 → 90.6 %), precision 97.8 →
+98.6 %, flag precision / recall 74.2 / 64.6 → 55.6 / **21.4 %**. Per document, Paddle read more rows right on
+53 positive seed × level documents, fewer on 23, as many on 28, and fewer false rows on 17 negatives, more on 2.
+The bench's own delta printer reads the gate's runs (`npm run ocr-bench -- --compare
+~/degree-audit-samples/bench-out/engine-gate-20261009/medium --baseline
+~/degree-audit-samples/bench-out/ocr-full-20261009`: L2 / L5 as above, 16 regression lines, 85 improvements).
+
+**Verdict: NOT adopted — the accuracy half fails.** +7.7 points pooled over L2–L5 against the ≥ +10 the gate
+asks; level by level it clears the bar on the office scan (+14.8) and the phone photo (+12.2) and not on the
+photocopy (+6.3) or the stamped page (−2.6). The time half passes on the bench's figure (s/page pooled, ×1.20;
+×1.06–1.39 per level), but that figure is pulled down by Tesseract's orientation trial re-reading low-confidence
+key pages four times (the Stanford key at L5: 21.2 s/page). Per document the median ratio is ×1.78 (L2 1.66,
+L3 1.88, L4 1.74, L5 1.97) and on the 26 transcripts themselves — the documents with rows — ×2.30: the Minerva
+long record ×2.3–2.5, the Banner pages ×1.4–2.2. On the pages a student uploads it is over the gate's 2×. Two further reasons it is not a drop-in:
+(1) its flag recall — the share of wrong rows the preview marks ⚠ for the student to check — falls from 64.6
+to 21.4 %, because its character probabilities stay high on rows it reads wrong; the app's "never guess"
+safety net would need a new confidence rule before it could ship; (2) it reads term cells worse (99.3 →
+95.5 %). The swings are concentrated: the Minerva long record (49 rows) gains 9 → 32 at L3 and loses 28 → 1
+at L4 (each title's trailing number read as the credits, the term headers lost), ANU's sample 0 → 12 of 32 at
+L2 (and 0 both ways at L5, every row read without its level cell), Alberta 9 → 21 of 24 at L5; the insideND page reads 0 rows at L2 and L5 because `layout.ts` splits its one-column table into two
+columns at the gutter before "Credit Hours" (the grades' right-hand cells come out as a second column after
+the first) — the split Tesseract's boxes hit only at L4 — so part of the
+difference either way is the layout stage and the parser, not the engine (plan step 2.5's ground).
+
+**Re-measured on the parser that landed during the gate** (`81b038d`: Batch C's text side and OCR step 2.5
+(a), (b), (d) — a frozen archive again, both engines re-read in one session, `head-81b038d-L2/` … `-L5/`):
+both engines gain and Tesseract gains more — row accuracy L2 63.0 → 76.3 % (+13.3), L3 44.1 → 51.1 % (+7.0),
+L4 46.7 → 39.3 % (−7.4), L5 67.0 → 75.2 % (+8.1); pooled 55.2 → 60.5 %, **+5.3 points** (596 → 653 of 1080);
+false rows 65 → 33; time ×1.23 pooled. The verdict holds, with a wider margin.
+
+Where it would help, measured: false rows fall by more than half at every level (L2–L5 73 → 28; L6 38 → 14),
+and a turned page reads 15–16 points better. Size if it were adopted: 1.78 + 4.46 MB of models, 14.24 MB
+`ort-wasm-simd-threaded.wasm` (onnxruntime-web 1.30.0) and 0.2 MB of runtime ≈ 20.7 MB raw beside the 6.6 MB
+of `public/ocr/` (`tests/ocr-assets.test.ts` caps it at 7.5 MB until the DGS raises it).
+
+The runner, the fetcher and the calibration stay in the tree for a re-run — on new parser code (the gate's
+two columns go through the same parser, so a parser change moves both), a new model (PP-OCRv6_small, 31 MB
+of models, is the research's accuracy pick), or a new runtime:
+
+    cd scripts/dev/ocr-bench/engine-gate && npm install && node fetch-models.mjs
+    node --experimental-strip-types gate.mjs --from ~/degree-audit-samples/bench-out/ocr-full-20261009 \
+         --levels L2,L5 --tesseract --out ~/degree-audit-samples/bench-out/engine-gate-<date>-medium
+    node --experimental-strip-types calibrate.mjs --from ~/degree-audit-samples/bench-out/ocr-full-20261009
+
+(`--levels L3`, `L4`, `L6` likewise; `--backend node --threads 4` for a faster accuracy-only pass — the same
+numerics, not the browser's time; `--only <seed>` prints the row diffs; `--trial-always` reads all four turns.)
+`trial-calibration-L1/` holds the trial's L1 figures only (read from the working tree with an earlier word
+splitter; confidences do not depend on either). FERPA: public and generator seeds only.

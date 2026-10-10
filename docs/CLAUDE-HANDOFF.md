@@ -389,7 +389,12 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `npm run ocr-bench -- --compare <it> --baseline …/ocr-step11-after-20261009`), Batch C once the
   DGS answers (CC15, CC16, TH02, the transcript gate, the CUNY and trimester questions, open
   question (g)), plan steps 2.5–2.7 (the header-mapped cell path's tolerance of OCR noise is what
-  turns the 300-dpi gain on; the two-pass deskew), then the engine gate (step 14).
+  turns the 300-dpi gain on; the two-pass deskew). The engine gate (step 14) was measured offline on
+  2026-10-09 and PP-OCRv6_tiny NOT adopted (+7.7 points of row accuracy on L2–L5 against the +10 asked;
+  flag recall 64.6 → 21.4 %): the runner, model fetcher and calibration live in
+  `scripts/dev/ocr-bench/engine-gate/` with their own `package.json` (never installed by the root
+  `npm ci`), the models outside the repo; `docs/OCR-BENCHMARK.md` "Engine gate" has the method, the
+  numbers and the re-run commands.
 - **Batch C, the text side** (2026-10-09 — the DGS's answers (1)–(3) and CC16; `418f9d1` `33e037f` `300eb52` `3f9a7f3`, plan §5 has
   the numbers). In `src/transcript/external.ts`: “Code-less rows” (`codelessFit` → `readCodelessCells`, `readCreditBreakdown`,
   `readCodelessRow`; a candidate with `codeMissing: true` has `courseId: ''`, and a document with any coded row keeps none of them —

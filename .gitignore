@@ -19,3 +19,6 @@ sanitized-scan-*.png
 # personal, uncommitted instructions)
 .claude/worktrees/
 CLAUDE.local.md
+# the OCR engine gate's own install (plan step 14; offline only — scripts/dev/ocr-bench/engine-gate/package.json).
+# Its models live outside the repo, in ~/degree-audit-samples/engine-gate-models/.
+scripts/dev/ocr-bench/engine-gate/node_modules/
