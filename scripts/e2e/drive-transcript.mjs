@@ -473,16 +473,18 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     if (r.toggle !== 'show the scanned line' || r.canvas) throw new Error('an unflagged OCR row keeps its scanned line behind the toggle: ' + JSON.stringify(r));
   }
   await s.shotElement('external-ocr-strip', '.external-card .transcript-preview');
-  // At phone width the strip takes the row's full width and scrolls sideways
-  // inside its own box — the page never does (DGS 2026-09-06 layout rule).
+  // At phone width the strip takes the row's full width and shrinks to fit it:
+  // the whole line in view, nothing scrolls sideways — the strip's box or the
+  // page (DGS 2026-10-10: "yes, shrink").
   await s.setViewport({ width: 390, height: 1900, mobile: true, settleMs: 300 });
   const phoneStrip = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const c = document.querySelector('.external-card .transcript-preview tr.ocr-low .scan-strip > canvas');
     const r = c?.getBoundingClientRect();
-    return { pageSideways: document.documentElement.scrollWidth - window.innerWidth, shownW: r ? Math.round(r.width) : 0, shownH: r ? Math.round(r.height) : 0, left: r ? Math.round(r.left) : -1 };
+    const box = c?.parentElement;
+    return { pageSideways: document.documentElement.scrollWidth - window.innerWidth, stripSideways: box ? box.scrollWidth - box.clientWidth : -1, overBox: r && box ? Math.round(r.right - box.getBoundingClientRect().right) : -1, shownW: r ? Math.round(r.width) : 0, shownH: r ? Math.round(r.height) : 0, left: r ? Math.round(r.left) : -1 };
   })())`));
   console.log('  OCR strip at 390 px:', JSON.stringify(phoneStrip));
-  if (phoneStrip.pageSideways > 0 || phoneStrip.shownW < 100 || phoneStrip.shownH < 10 || phoneStrip.left < 0) throw new Error('the scanned-line strip at phone width: ' + JSON.stringify(phoneStrip));
+  if (phoneStrip.pageSideways > 0 || phoneStrip.stripSideways !== 0 || phoneStrip.overBox > 1 || phoneStrip.shownW < 100 || phoneStrip.shownH < 10 || phoneStrip.left < 0) throw new Error('the scanned-line strip at phone width: ' + JSON.stringify(phoneStrip));
   // The crop is of the preview alone: the window's floating panels (Next
   // steps, the warnings, the toasts, the phone's score bar) are held out of
   // it — WebKit's element shot paints them over a 1900-px-tall phone frame.

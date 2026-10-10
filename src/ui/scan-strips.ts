@@ -75,9 +75,9 @@ function stripCanvas(page: OcrPageImage, region: StripRegion): HTMLCanvasElement
   const canvas = el('canvas', { class: 'scan-strip-image', role: 'img', 'aria-label': SCANNED_LINE_LABEL });
   canvas.width = r.width;
   canvas.height = r.height;
-  // Shown across the card, never smaller than 60 % of its own pixels: a
-  // narrower card scrolls the strip sideways instead (src/style.css).
-  canvas.style.minWidth = `${Math.round(r.width * 0.6)}px`;
+  // Shown across the card and shrunk to fit it, however narrow (DGS
+  // 2026-10-10: "yes, shrink" — at phone width the 60 % floor it had hid the
+  // credits and grade behind a sideways swipe); src/style.css.
   canvas.getContext('2d')?.drawImage(page.canvas, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
   return canvas;
 }
