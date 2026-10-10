@@ -1,6 +1,6 @@
 {
  "sjtu-lifelong-template": [
-  "CC16 \u2014 two semesters printed side by side (CC15, the code-less rows, landed 2026-10-09: the 2003 table now reads its two rows with an empty id; the side-by-side 2001 and 2002 tables and the 2003 table\u2019s \u20181st Semester\u2019 line wait on CC16)"
+  "CC16 read since Batch C (2026-10-09): both halves of every side-by-side row are read, each under its column\u2019s semester, and a one-group line\u2019s term is left blank (its column cannot be told from the text). Still open: \u20182001 Academic Year\u2019 with \u20181st Semester   2nd Semester\u2019 is a single-year academic year whose first semester is the fall in China and the spring in Korea or Japan \u2014 only a country calendar places it, and the template prints no country (\u2018SHANGHAI\u2019 in the university\u2019s name only): 14 rows read with a blank term, want fall/spring"
  ],
  "chulalongkorn": [
   "TH02 \u2014 DGS decision: Thailand's 'First Semester 2022' runs August\u2013December (the calendar-order rule reads it as the spring)"

@@ -357,7 +357,8 @@
   "url": "https://nec.sjtu.edu.cn/UpFile/files/2024328135756408.doc",
   "kind": "official transcript-of-records TEMPLATE (.doc) with blank student fields; course rows verbatim",
   "lens": "east-asia",
-  "from": "east-asia/sjtu-lifelong-template.json"
+  "from": "east-asia/sjtu-lifelong-template.json",
+  "note": "Code-less (CC15) and side-by-side (CC16), both read since Batch C (DGS 2026-10-09): each row of the 2001 and 2002 tables holds the first and the second semester’s course, split at the header’s second “Course   Credits   Score” group. A line with ONE group (‘PC Software’ in 2001, the last five 2002 rows) belongs to whichever column ran longer, which the text does not show, so its expected term is blank (changed 2026-10-09 from the column the template’s layout implies). The single-year ‘2001 Academic Year’ places ‘1st Semester’ only with a country calendar (China: the fall), and the template prints no country."
  },
  "nankai-graduate-record": {
   "institution": "Nankai University",

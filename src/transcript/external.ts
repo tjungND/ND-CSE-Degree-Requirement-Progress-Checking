@@ -2011,6 +2011,30 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   /** The line trackTermAndTransfer just read was a term header — never a
    * code-less course row (CC15). */
   let termLineHere = false;
+  /** CC16 (DGS 2026-10-09, Batch C): the terms a "1st Semester   2nd
+   * Semester" line names over the columns of the table below it, placed in
+   * the academic year in force — `null` where the parser cannot place one
+   * (never a guess). Cleared by the next term header. */
+  let semesterColumns: ({ year: number; season: Season } | null)[] | undefined;
+  /** One cell of such a line: an ordinal and a term word, nothing else. */
+  const SEMESTER_CELL_RE = /^(?:(?:1st|2nd|3rd|first|second|third)\s+(?:semester|term)|(?:semester|term)\s*[-:]?\s*(?:[1-3]|I{1,3}))$/i;
+  /** A numbered semester of the academic year in force: of a two-year range
+   * ("2018-2019"), the first is the fall of its first year, the second the
+   * spring and a third the summer of its second (readTermLine's rule for
+   * "2018-2019 First Semester"); anything else is not placed. */
+  const placeSemester = (n: number): { year: number; season: Season } | null => {
+    if (academicRange) return n === 1 ? { year: academicRange.first, season: 'fall' } : n === 2 ? { year: academicRange.second, season: 'spring' } : n === 3 ? { year: academicRange.second, season: 'summer' } : null;
+    return null;
+  };
+  const readSemesterColumns = (line: string): boolean => {
+    const cells = line.replace(/\s{2,}/g, '  ').trim().split(/\s{2,}/);
+    if (cells.length < 1 || cells.length > 2 || !cells.every((c) => SEMESTER_CELL_RE.test(c))) return false;
+    semesterColumns = cells.map((c) => {
+      const n = ordinalOf(c);
+      return n === undefined ? null : placeSemester(n);
+    });
+    return true;
+  };
   const OWN_CREDIT_HEADING_RE = /^\s*(?!TRANSFER\b)[A-Z][A-Z'&.-]+(?:\s+[A-Z][A-Z'&.-]+){0,3}\s+CREDIT\s*:\s*$/;
   const trackTermAndTransfer = (line: string): void => {
     // Transfer blocks: Banner's "TRANSFER CREDIT ACCEPTED BY …" until
@@ -2033,8 +2057,12 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // Track the nearest term-ish header so course rows inherit its year.
     if (IN_PROGRESS_HEADING_RE.test(line)) inProgressBlock = true;
     else if (SECTION_HEADING_RE.test(line)) inProgressBlock = false;
-    const term = codelessRowShape(line) ? undefined : readTermLine(line);
+    // Two semesters named side by side ("First Semester   Second Semester")
+    // head the two halves of a CC16 table — not one term header.
+    const twoColumns = readSemesterColumns(line) && semesterColumns!.length === 2;
+    const term = twoColumns || codelessRowShape(line) ? undefined : readTermLine(line);
     termLineHere = term !== undefined;
+    if (term) semesterColumns = undefined;
     if (term) {
       // (The in-progress section's own term line — "Term: Fall 2024" under
       // "COURSES IN PROGRESS" — does not end it; a section heading does.)
@@ -2428,7 +2456,42 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   /** A line the header in force reads as a code-less course row — never a
    * term header, whatever season word its title holds ("2019-2020   2
    * Summer Practice   2.0   85"). */
-  const codelessRowShape = (line: string): boolean => codelessFit(line.replace(/\s{2,}/g, '  ').trim().split(/\s{2,}/), columnKinds, lastHeaderCells) !== undefined;
+  /** CC16 (DGS 2026-10-09, Batch C): a header whose cells are the same
+   * group printed twice — SJTU's "Course   Credits   Score   Course   Credits
+   * Score", two semesters side by side — is one table per half: the group's
+   * own kinds and header words, read once per header. */
+  let sideBySideFor: string[] | undefined;
+  let sideBySideGroup: { kinds: ColumnKind[]; headers: string[] } | undefined;
+  const sideBySide = (): { kinds: ColumnKind[]; headers: string[] } | undefined => {
+    if (sideBySideFor === lastHeaderCells) return sideBySideGroup;
+    sideBySideFor = lastHeaderCells;
+    sideBySideGroup = undefined;
+    const n = lastHeaderCells.length;
+    if (columnKinds === undefined || n < 4 || n % 2 !== 0) return undefined;
+    const left = lastHeaderCells.slice(0, n / 2);
+    if (left.some((c, i) => c.toLowerCase() !== lastHeaderCells[n / 2 + i]!.toLowerCase())) return undefined;
+    // readColumnHeader keeps the cells it read in lastHeaderCells: the
+    // table's own header stays the one in force.
+    const saved = lastHeaderCells;
+    const kinds = readColumnHeader(left.join('   '));
+    const headers = lastHeaderCells;
+    lastHeaderCells = saved;
+    sideBySideGroup = kinds !== undefined && kinds.length === n / 2 ? { kinds, headers } : undefined;
+    return sideBySideGroup;
+  };
+  /** The cells of a line, by group: both halves of a side-by-side row, or
+   * one group's cells — whose side the text cannot tell. */
+  const sideBySideHalves = (cells: string[], group: { kinds: ColumnKind[] }): { cells: string[]; side?: 0 | 1 }[] => {
+    const k = group.kinds.length;
+    if (cells.length === 2 * k) return [{ cells: cells.slice(0, k), side: 0 }, { cells: cells.slice(k), side: 1 }];
+    return cells.length === k ? [{ cells }] : [];
+  };
+  const codelessRowShape = (line: string): boolean => {
+    const cells = line.replace(/\s{2,}/g, '  ').trim().split(/\s{2,}/);
+    const group = sideBySide();
+    if (group) return sideBySideHalves(cells, group).some((h) => codelessFit(h.cells, group.kinds, group.headers) !== undefined);
+    return codelessFit(cells, columnKinds, lastHeaderCells) !== undefined;
+  };
   const readCodelessCells = (cells: string[], lineIndex: number, kinds: ColumnKind[] | undefined = columnKinds, headers: string[] = lastHeaderCells, term?: { year?: number; season?: Season } | null): boolean => {
     const fit = codelessFit(cells, kinds, headers);
     if (!fit) return false;
@@ -2506,6 +2569,19 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (termLineHere) return lineIndex;
     const breakdown = readCreditBreakdown(flat, lineIndex);
     if (breakdown !== undefined) return breakdown;
+    // CC16: a side-by-side table splits each row at its second group; the
+    // left half is read under the first term the semester line names, the
+    // right half under the second. A line with one group's cells is a course
+    // of either column — the text does not say which — so its term is left
+    // blank for the student (null), never guessed.
+    const group = sideBySide();
+    if (group) {
+      for (const half of sideBySideHalves(flat.split(/\s{2,}/), group)) {
+        const term = half.side === undefined || semesterColumns?.length !== 2 ? null : semesterColumns[half.side]!;
+        readCodelessCells(half.cells, lineIndex, group.kinds, group.headers, term);
+      }
+      return lineIndex;
+    }
     readCodelessCells(flat.split(/\s{2,}/), lineIndex);
     return lineIndex;
   };

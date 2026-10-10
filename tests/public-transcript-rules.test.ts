@@ -821,3 +821,28 @@ describe('transcript accuracy program, Batch C — CC15 code-less rows (2026-10-
     assert.equal(r.transferRowsSkipped, 2);
   });
 });
+
+describe('transcript accuracy program, Batch C — CC16 side-by-side semesters (2026-10-09)', () => {
+  const terms = (r: ReturnType<typeof parseExternalTranscript>) => r.courses.map((c) => `${c.title} | ${c.credits} | ${c.grade ?? c.rawGrade} | ${c.season ?? ''} ${c.year ?? ''}`);
+  it('a header printing one group twice splits each row at the second group: the left half under the first semester, the right under the second', () => {
+    const r = doc('SOME UNIVERSITY', '2018-2019 Academic Year', 'First Semester   Second Semester', 'Course   Credits   Score   Course   Credits   Score', 'College English   4   86   Data Structures and Algorithms   4   90', 'Discrete Mathematics   3   79   Computer Network   4   86');
+    assert.deepEqual(terms(r), ['College English | 4 | 86 | fall 2018', 'Data Structures and Algorithms | 4 | 90 | spring 2019', 'Discrete Mathematics | 3 | 79 | fall 2018', 'Computer Network | 4 | 86 | spring 2019']);
+    for (const c of r.courses) assert.equal(c.codeMissing, true);
+  });
+  it('a line with ONE group’s cells is a course of either column — the text cannot say which — so its term is left blank', () => {
+    const r = doc('SOME UNIVERSITY', '2018-2019 Academic Year', 'First Semester   Second Semester', 'Course   Credits   Score   Course   Credits   Score', 'College English   4   86   Data Structures and Algorithms   4   90', 'PC Software   3   85');
+    assert.deepEqual(terms(r), ['College English | 4 | 86 | fall 2018', 'Data Structures and Algorithms | 4 | 90 | spring 2019', 'PC Software | 3 | 85 |  ']);
+  });
+  it('semesters the parser cannot place leave both halves’ terms blank: no semester line, or a single-year academic year with no calendar for it', () => {
+    const none = doc('SOME UNIVERSITY', 'Course   Credits   Score   Course   Credits   Score', 'College English   4   86   Data Structures and Algorithms   4   90');
+    assert.deepEqual(terms(none), ['College English | 4 | 86 |  ', 'Data Structures and Algorithms | 4 | 90 |  ']);
+    // "2001 Academic Year   1st Semester" is the fall in China and the
+    // spring in Korea and Japan: without a country calendar, nothing places it.
+    const single = doc('SOME UNIVERSITY', '2001 Academic Year', '1st Semester   2nd Semester', 'Course   Credits   Score   Course   Credits   Score', 'College English   4   86   Data Structures and Algorithms   4   90');
+    assert.deepEqual(terms(single), ['College English | 4 | 86 |  ', 'Data Structures and Algorithms | 4 | 90 |  ']);
+  });
+  it('a header whose two halves differ is one table, read as before: one row per line', () => {
+    const r = doc('SOME UNIVERSITY', '2018-2019 Academic Year', 'Course   Credits   Score   Remarks   Hours   Grade', 'College English   4   86   Data Structures   4   90');
+    assert.deepEqual(r.courses.map((c) => c.title), ['College English']);
+  });
+});
