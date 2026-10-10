@@ -32,10 +32,16 @@
 //   --compare <dir>     no run: print the deltas of that finished --out dir against --baseline
 //                       (two runs made separately — a before and an after on the same code)
 //   --yes               run --full without stopping at the estimate
+//   --reparse <dir>     no engine: re-parse and re-score the OCR lines an earlier run saved
+//                       (<dir>/<seed>/<level>/ocr-lines.json — every run writes them since plan
+//                       step 2.5) with TODAY's parser — a parser-only A/B in seconds, exact
+//                       because the engine is deterministic; --levels/--families/--only filter
+//                       as usual, and the config is the saved run's
 //
 // Output (all under --out): <seed>/master/ (300-dpi pages), <seed>/<level>/
 // (the level's images + PDF, manifest.json, render/ = what pdfjs gave the
-// engine), results.csv (one row per seed × level), results.md (the boards),
+// engine, ocr-lines.json = the lines the parser read, for --reparse),
+// results.csv (one row per seed × level), results.md (the boards),
 // results.json (rows + boards, for --baseline).
 //
 // FERPA: public and synthetic seeds are named; private seeds are private-NN
@@ -64,7 +70,7 @@ const DEFAULT_SECONDS_PER_PAGE = 1.6;
 const PREP_SECONDS_PER_PAGE = 0.6;
 
 function parseArgs(argv) {
-  const o = { preset: undefined, levels: undefined, families: undefined, only: undefined, dpi: 200, seed: 7, config: undefined, seedsDir: undefined, skins: ['mono', 'ruled', 'banner'], fetch: false, out: undefined, baseline: undefined, compare: undefined, yes: false };
+  const o = { preset: undefined, levels: undefined, families: undefined, only: undefined, dpi: 200, seed: 7, config: undefined, seedsDir: undefined, skins: ['mono', 'ruled', 'banner'], fetch: false, out: undefined, baseline: undefined, compare: undefined, reparse: undefined, yes: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => {
@@ -85,6 +91,7 @@ function parseArgs(argv) {
     else if (a === '--out') o.out = resolve(next());
     else if (a === '--baseline') o.baseline = resolve(next());
     else if (a === '--compare') o.compare = resolve(next());
+    else if (a === '--reparse') o.reparse = resolve(next());
     else if (a === '--yes') o.yes = true;
     else throw new Error(`unknown option ${a} (see the header of scripts/dev/ocr-bench/bench.mjs)`);
   }
@@ -279,7 +286,9 @@ export async function runBench(argv) {
     return compareRuns(o.baseline, o.compare, say);
   }
   const configFile = o.config ? readJson(o.config) : undefined;
-  const config = mergeConfig(configFile);
+  // --reparse scores lines another run read: its config is the one that made them.
+  const reparsedConfig = o.reparse !== undefined && existsSync(join(o.reparse, 'results.json')) ? readJson(join(o.reparse, 'results.json')).meta.config : undefined;
+  const config = mergeConfig(reparsedConfig, configFile);
   if (o.config && configFile?.name === undefined) config.name = basename(o.config).replace(/\.json$/, '');
   const engine = `tesseract.js ${readJson(join(root, 'node_modules', 'tesseract.js', 'package.json')).version}, public/ocr`;
   mkdirSync(o.out, { recursive: true });
@@ -317,7 +326,7 @@ export async function runBench(argv) {
     const estimate = pages * ladder.length * (sPerPage + PREP_SECONDS_PER_PAGE);
     say(`seeds: ${seeds.length} (${pages} pages) × levels ${ladder.join(', ')} → ~${(estimate / 60).toFixed(0)} min at ${sPerPage.toFixed(1)} s/page OCR + prep; config ${config.name}; out ${o.out}`);
     for (const [family, group] of groupBy(seeds, (s) => s.family)) say(`  ${family}: ${group.length} seed(s), ${group.reduce((n, s) => n + s.pages, 0)} page(s)`);
-    if (o.preset === 'full' && !o.yes) {
+    if (o.preset === 'full' && !o.yes && o.reparse === undefined) {
       say('--full is never run unattended: re-run with --yes to start it.');
       return 0;
     }
@@ -325,7 +334,8 @@ export async function runBench(argv) {
       say('nothing to run');
       return 0;
     }
-    const worker = await createOcrWorker(config);
+    // --reparse: the engine is not started; each level's saved lines are read back.
+    const worker = o.reparse === undefined ? await createOcrWorker(config) : { terminate: async () => {} };
     try {
       for (const seed of seeds) {
         const seedDir = join(o.out, seed.id.replace(/[^A-Za-z0-9._-]/g, '_'));
@@ -333,6 +343,21 @@ export async function runBench(argv) {
         // The reference row: the exact path on the source document.
         rows.push(scoreBench({ seed, level: 'text', dpi: 0, config: config.name, parsed: parseLines(seed.parser, seed.truthLines), ocrLines: seed.truthLines, seconds: 0, pagesRead: seed.pages }));
         if (ladder.length === 0) continue;
+        if (o.reparse !== undefined) {
+          for (const level of ladder) {
+            const file = join(o.reparse, basename(seedDir), level, 'ocr-lines.json');
+            if (!existsSync(file)) {
+              say(`  ${seed.id} @ ${level}: skipped (no ${file})`);
+              continue;
+            }
+            const saved = readJson(file);
+            const row = scoreBench({ seed, level, dpi: saved.dpi, config: config.name, parsed: parseLines(seed.parser, saved.lines), ocrLines: saved.lines.map((l) => (typeof l === 'string' ? l : l.text)), seconds: saved.seconds, pagesRead: saved.pagesRead });
+            if (saved.pageFigures !== undefined) row.pageFigures = saved.pageFigures;
+            rows.push(row);
+            if (o.only !== undefined && !row.exact) for (const d of row.diffs.slice(0, 12)) say(`  ${seed.id} @ ${level}:  ${d}`);
+          }
+          continue;
+        }
         const master = await masterPages(seed, seedDir);
         // The app reads at most MAX_PAGES (ocr.ts:44) — the ladder stops there too; the
         // truth keeps every page, so what the app never reads counts against it.
@@ -359,6 +384,9 @@ export async function runBench(argv) {
             pagesRead = doc.pagesRead;
             pageFigures = doc.pages.map(({ file: _f, blocks: _b, ...figures }) => figures);
           }
+          // The lines the parser read, kept for --reparse (a parser-only A/B without the engine).
+          mkdirSync(join(seedDir, level), { recursive: true });
+          writeFileSync(join(seedDir, level, 'ocr-lines.json'), JSON.stringify({ config: config.name, dpi: entry.dpi, seconds, pagesRead, pageFigures, lines }));
           const row = scoreBench({ seed, level, dpi: entry.dpi, config: config.name, parsed: parseLines(seed.parser, lines), ocrLines: lines.map((l) => (typeof l === 'string' ? l : l.text)), seconds, pagesRead });
           // What the runner knew per page (OCR step 12): the render dpi, the engine's mean word
           // confidence, the rotation the trial chose and its four figures — results.json keeps
@@ -376,7 +404,7 @@ export async function runBench(argv) {
 
   const ocrRows = rows.filter((r) => r.level !== 'text' && r.level !== 'L7');
   const secondsPerPage = ocrRows.reduce((n, r) => n + r.pagesRead, 0) ? ocrRows.reduce((n, r) => n + r.seconds, 0) / ocrRows.reduce((n, r) => n + r.pagesRead, 0) : undefined;
-  const meta = { generatedAt: new Date().toISOString(), args: argv, config, engine, seeds: new Set(rows.map((r) => r.seed)).size, pages: rows.filter((r) => r.level === 'text').reduce((n, r) => n + r.pages, 0), secondsPerPage, wallSeconds: (Date.now() - t0) / 1000 };
+  const meta = { generatedAt: new Date().toISOString(), args: argv, config, engine, ...(o.reparse !== undefined ? { reparsedFrom: o.reparse } : {}), seeds: new Set(rows.map((r) => r.seed)).size, pages: rows.filter((r) => r.level === 'text').reduce((n, r) => n + r.pages, 0), secondsPerPage, wallSeconds: (Date.now() - t0) / 1000 };
   writeFileSync(join(o.out, 'results.csv'), [CSV_COLUMNS.join(','), ...rows.map(csvRow)].join('\n') + '\n');
   writeFileSync(join(o.out, 'results.md'), resultsMarkdown(rows, o, meta));
   writeFileSync(join(o.out, 'results.json'), JSON.stringify({ meta, rows: rows.map(({ diffs: _d, ...r }) => r) }, null, 1));
