@@ -46,6 +46,11 @@ export interface ExternalCourseCandidate {
    * The preview shows it beside the corrected value and the row stays
    * flagged; it is never saved with the course. */
   ocrRead?: { credits?: string; grade?: string };
+  /** OCR only (Batch C answer (5), DGS 2026-10-09): the lines the row was
+   * read from — indices into the lines the parser was given: its own line,
+   * and a title or numbers line it took from just above or below — so the
+   * preview can show the scanned line beside the row's fields. */
+  sourceLines?: { from: number; to: number };
   /** The level the student was registered at for this row, when the
    * transcript says (2026-09-05 — combined B.S.+M.S. and 4+1 transcripts):
    * a UG/GR-style level cell on the row, a "Level: Graduate" / "Term Totals
@@ -2786,6 +2791,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         year,
         season,
         lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits ? true : undefined,
+        ...(ocrLines ? { sourceLines: { from: lineIndex, to: lineIndex } } : {}),
       },
       mapped.level,
     );
@@ -2824,7 +2830,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const start = termOfDate(`${program[2]}-${program[1]!.padStart(2, '0')}-15`);
     for (const p of parts) {
       const confidence = confidences?.[p.at];
-      pushCodeless({ title: p.title.slice(0, 90), credits: p.credits, year: start.year, season: start.season, lowConfidence: confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR ? true : undefined }, undefined);
+      pushCodeless({ title: p.title.slice(0, 90), credits: p.credits, year: start.year, season: start.season, lowConfidence: confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR ? true : undefined, ...(ocrLines ? { sourceLines: { from: p.at, to: p.at } } : {}) }, undefined);
     }
     return last;
   };
@@ -2939,6 +2945,8 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const readCourseRow = (line: string, flat: string, lead: Lead, lineIndex: number): number => {
     // The row line's own confidence, before a title line below it is consumed.
     const rowConfidence = confidences?.[lineIndex];
+    // …and its index, for the lines the row is read from (`sourceLines`).
+    const rowLine = lineIndex;
     if (flat.length < 6) return lineIndex;
     // The course code is expected at the start of the row (or right after a
     // leading term/date cell). Column gaps are unreliable across layouts, so
@@ -3047,12 +3055,16 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // transcript's non-Latin title), takes the plain wordy line just above
     // and/or the one after the row (after a consumed continuation line).
     const unreadable = into.titleParts.length > 0 && (into.titleParts.join(' ').match(/[\p{L}]/gu) ?? []).length < 4;
+    let titleAbove = false;
+    let titleBelow = false;
     if (into.titleParts.length === 0 || unreadable) {
       const before = plainTitleLine(lines[lineIndex - 1]);
       const after = plainTitleLine(lines[lineIndex + (usedContinuation ? 2 : 1)]);
       const found = [before, after].filter((t): t is string => t !== undefined);
       if (found.length > 0) {
         into.titleParts = found.join(' ').split(' ');
+        titleAbove = before !== undefined;
+        titleBelow = after !== undefined;
         if (after !== undefined) lineIndex += 1; // consumed as a title, never as a row
       }
     }
@@ -3095,6 +3107,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       // A corrected cell keeps the row flagged (Batch C answer (4)).
       lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits || ocrRead !== undefined ? true : undefined,
       ...(ocrRead !== undefined ? { ocrRead } : {}),
+      ...(ocrLines ? { sourceLines: { from: rowLine - (titleAbove ? 1 : 0), to: rowLine + (usedContinuation ? 1 : 0) + (titleBelow ? 1 : 0) } } : {}),
     });
     rowLevels.push(rowLevel ?? blockLevel);
     if (usedContinuation) lineIndex += 1; // the continuation line is consumed

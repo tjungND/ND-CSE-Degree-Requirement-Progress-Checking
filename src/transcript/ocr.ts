@@ -10,6 +10,7 @@ import * as pdfjs from 'pdfjs-dist';
 import './pdf.ts'; // configures pdfjs's bundled worker (side effect)
 import { meanWordConfidence, OCR_ENGINE_PARAMETERS, OCR_ORIENTATION_TRIAL_MARGIN, OCR_ORIENTATION_TRIAL_SKIP_ABOVE, OCR_TRIAL_TURNS, ocrPageLayout, ocrRenderScale, ocrScaleReduced, paintedImageSizes, scanResolution, type ColumnHint, type OcrLine } from './ocr-lines.ts';
 import type { OcrReducedPage } from './preview-layout.ts';
+import { stripPageSize } from './scan-strip.ts';
 
 export type { OcrLine } from './ocr-lines.ts';
 export type { OcrReducedPage } from './preview-layout.ts';
@@ -61,6 +62,42 @@ export interface OcrReadResult {
   pagesTotal: number;
   reducedPages: OcrReducedPage[];
   turned: 0 | 90 | 180 | 270;
+  /** A small copy of every page read, by page number, for the preview's
+   * scanned-line strips (Batch C answer (5), DGS 2026-10-09): `scale` is the
+   * copy's size against the page the engine read, whose pixels the lines'
+   * boxes are in. IN MEMORY ONLY — the preview holds them beside its rows,
+   * never on a row, in the record, its export or localStorage, and empties
+   * them when it closes (src/ui/scan-strips.ts). */
+  pageImages: Map<number, OcrPageImage>;
+}
+
+/** One kept page copy (`OcrReadResult.pageImages`). */
+export interface OcrPageImage {
+  canvas: HTMLCanvasElement;
+  scale: number;
+}
+
+/** A canvas's pixels released at once: WebKit counts a canvas's memory
+ * against its page-wide cap until it is collected, and a 216-dpi page is
+ * 17 MB — so a page the engine has read, and every orientation-trial reading
+ * not kept, is emptied as soon as it is done with. */
+function releaseCanvas(canvas: HTMLCanvasElement): void {
+  canvas.width = 0;
+  canvas.height = 0;
+}
+
+/** The kept copy of a page the engine read (`stripPageSize`: at most 1,700 px
+ * on its longer side), drawn from the engine's canvas before it is released. */
+function keepPageCopy(source: HTMLCanvasElement): OcrPageImage | undefined {
+  const size = stripPageSize(source.width, source.height);
+  if (size.scale === 0) return undefined;
+  const canvas = document.createElement('canvas');
+  canvas.width = size.width;
+  canvas.height = size.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return undefined;
+  ctx.drawImage(source, 0, 0, size.width, size.height);
+  return { canvas, scale: size.scale };
 }
 
 /** OCR a scanned PDF into text lines with per-line confidence. Throws when the
@@ -90,6 +127,7 @@ export async function ocrPdfToLines(data: ArrayBuffer, onProgress: (p: OcrProgre
     const pagesRead = Math.min(pagesTotal, MAX_PAGES);
     const lines: OcrLine[] = [];
     const reducedPages: OcrReducedPage[] = [];
+    const pageImages = new Map<number, OcrPageImage>();
     // The previous page's column layout, handed on as pdf.ts hands a text
     // PDF's (a short last page may split by it — F4, 2026-10-09).
     let hint: ColumnHint | undefined;
@@ -115,7 +153,7 @@ export async function ocrPdfToLines(data: ArrayBuffer, onProgress: (p: OcrProgre
         if (!ctx) throw new Error('no canvas 2d context');
         await page.render({ canvasContext: ctx, viewport }).promise;
         const { data: out } = await worker.recognize(canvas, {}, { blocks: true });
-        return { blocks: out.blocks, width: canvas.width, height: canvas.height, confidence: meanWordConfidence(out.blocks) };
+        return { blocks: out.blocks, width: canvas.width, height: canvas.height, confidence: meanWordConfidence(out.blocks), canvas };
       };
       let best = await readTurned(turned);
       if (p === 1 && best.confidence < OCR_ORIENTATION_TRIAL_SKIP_ABOVE) {
@@ -127,19 +165,25 @@ export async function ocrPdfToLines(data: ArrayBuffer, onProgress: (p: OcrProgre
         for (const turn of OCR_TRIAL_TURNS) {
           const other = await readTurned(turn);
           if (other.confidence > best.confidence && other.confidence >= asItCame + OCR_ORIENTATION_TRIAL_MARGIN) {
+            releaseCanvas(best.canvas);
             best = other;
             turned = turn;
-          }
+          } else releaseCanvas(other.canvas);
         }
       }
+      // The page as it was read, kept small for the preview's scanned-line
+      // strips; the engine's canvas goes.
+      const kept = keepPageCopy(best.canvas);
+      if (kept) pageImages.set(p, kept);
+      releaseCanvas(best.canvas);
       // The pure stage (ocr-lines.ts): word boxes → layout.ts → the parser's
       // lines, in the canvas's pixels over the page's scale = PDF units.
       const read = ocrPageLayout(best.blocks, best.width, best.height, scale, { hint });
       hint = read.hint;
-      lines.push(...read.lines);
+      for (const line of read.lines) lines.push({ ...line, page: p });
       lines.push({ text: '', confidence: 100 }); // page break, like pdfToLines
     }
-    return { lines, pagesRead, pagesTotal, reducedPages, turned };
+    return { lines, pagesRead, pagesTotal, reducedPages, turned, pageImages };
   } finally {
     await loadingTask.destroy();
     await worker.terminate();

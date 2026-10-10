@@ -508,3 +508,6 @@ The FERPA sentence stays.
 | W-CL410 | screen-reader names of a code-less row’s controls until its id is typed — the course’s title in quotation marks where a coded row says its id (“row 3” only when the title is blank too) | Add “Data Mining” · Course id, “Data Mining” · Credits for “Data Mining” · Grade for “Data Mining” |
 | W-CL411 | transcript preview (OCR), under a credits or grade box the OCR numeric correction filled (Batch C answer (4), DGS 2026-10-09) — the scan’s own characters | scan shows “3.O” |
 | W-CL412 | the same note’s hover text and the box’s screen-reader description | The scan shows “3.O” here — a letter where a digit or a plus sign belongs — so the box was filled in with what it stands for. Check it against your transcript. |
+| W-CL413 | transcript preview (OCR), the toggle under a row that is not flagged ⚠ (Batch C answer (5), DGS 2026-10-09 — the DGS’s own words); a flagged row shows the scanned line at once | show the scanned line |
+| W-CL414 | the scanned-line image’s accessible name (screen readers) | The scanned line this row was read from |
+| W-CL415 | the OCR preview table’s header over the scanned-line column (screen readers only; the column has no visible heading) | Scanned line |

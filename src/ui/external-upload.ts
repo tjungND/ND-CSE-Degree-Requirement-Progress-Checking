@@ -32,6 +32,8 @@ import { confirmDialog } from './copy-dialog.ts';
 import { parseTranscript } from '../transcript/parse.ts';
 import { el, inactiveButton, option, PREVIEW_OPEN_NOTE, SIMULATION_IMPORT_NOTE } from './dom.ts';
 import { campusQuestion, MULTI_CAMPUS_SYSTEMS } from '../transcript/campus.ts';
+import { stripRegion, type StripRegion } from '../transcript/scan-strip.ts';
+import { emptyPageImages, holdScanStrips, holdsScanStrips, releaseScanStrips, scanStripFor } from './scan-strips.ts';
 
 type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
 /** What the Notre Dame row is called, which depends on the program the student
@@ -68,7 +70,8 @@ interface PreviewRow {
   lowConfidence?: boolean;
   /** OCR only (Batch C answer (4), DGS 2026-10-09): what the scan showed in a
    * credits or grade cell the parser corrected ("3.O", "Bt") — shown beside
-   * the value, never saved (the Add builds each course field by field). */
+   * the value, never saved (the Add builds each course field by field,
+   * `courseEntryOf`). */
   ocrRead?: { credits?: string; grade?: string };
   /** The level the student was registered at for this row (2026-09-05 —
    * combined B.S.+M.S. / 4+1 transcripts): from the transcript when it says,
@@ -284,6 +287,7 @@ let answeringEarlier = false;
  * can cancel. */
 export function resetPriorImports(): void {
   preview = undefined;
+  releaseScanStrips();
   importError = undefined;
   previewError = undefined;
   pendingScan = undefined;
@@ -640,6 +644,33 @@ export function undergraduateInProgress(slot: DegreeLevel, rows: { grade: string
   return rows.some((r) => (r.grade === '' && !r.rawGrade) || r.grade === 'IP');
 }
 
+/** The course one ready preview row becomes on Add — built field by field
+ * from the values the student checked, never by copying the row, so nothing
+ * the preview holds besides them reaches the record, its JSON export or its
+ * localStorage copy: not the scan's raw readings (`ocrRead`, Batch C answer
+ * (4)), and not the scanned-line images, which are not on the row at all
+ * (src/ui/scan-strips.ts, answer (5) — tests/scan-strip.test.ts asserts it). */
+export function courseEntryOf(r: PreviewRow, p: Pick<ExternalPreview, 'slot' | 'unofficial' | 'creditSystem'>, university: string): CourseEntry {
+  return {
+    courseId: canonicalCourseId(r.courseId),
+    title: r.title.trim() || undefined,
+    credits: r.credits!,
+    term: { season: r.season, year: r.year! },
+    grade: r.grade as Grade,
+    origin: 'transfer',
+    institution: university,
+    degreeLevel: degreeLevelFor(p.slot, r.level),
+    // Notre Dame rows keep their registered level so a later
+    // entry-term change can re-file them (prior-nd.ts).
+    registeredLevel: isNotreDameInstitution(university) ? r.level : undefined,
+    // The emails warn which transcripts were unofficial (DGS 2026-10-03).
+    ...(p.unofficial ? { fromUnofficialTranscript: true as const } : {}),
+    // The mark as printed, when the student mapped it to a letter (2026-10-03).
+    ...(r.rawGrade ? { transcriptMark: r.rawGrade } : {}),
+    ...((p.creditSystem === 'quarter' || p.creditSystem === 'trimester') && !isNotreDameInstitution(university) ? { creditSystem: p.creditSystem } : {}),
+  };
+}
+
 /** One parsed course as a preview row: ticked, the transcript's level or the
  * slot's — or, for a course printed without a number (CC15, DGS 2026-10-09),
  * unticked with an empty id box until the student types one. */
@@ -678,6 +709,7 @@ function previewFromParsed(
   const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
   const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed, args.student.program);
   const bachelors = bachelorsForPreview(slot, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
+  releaseScanStrips(); // an earlier preview's scanned lines go with it (Batch C answer (5))
   preview = {
     ...(flags.unofficial ? { unofficial: true } : {}),
     slot,
@@ -746,6 +778,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         // text layer may be an image's stray caption, or a layout the parser
         // cannot read that the OCR path can. Same opt-in as a scan.
         preview = undefined;
+        releaseScanStrips();
         pendingScan = { slot: slot.level, buffer, filename: file.name, reason: 'no-lines' };
         render();
         return;
@@ -910,7 +943,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
             void (async () => {
               try {
                 const { ocrPdfToLines } = await import('../transcript/ocr.ts');
-                const { lines, pagesRead, pagesTotal, reducedPages, turned } = await ocrPdfToLines(buffer, (progress) => {
+                const { lines, pagesRead, pagesTotal, reducedPages, turned, pageImages } = await ocrPdfToLines(buffer, (progress) => {
                   ocrBusy = progress;
                   render();
                 });
@@ -918,14 +951,33 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 const parsed = parseExternalTranscript(lines.map((l) => l.text), lines.map((l) => l.confidence));
                 ocrBusy = undefined;
                 const unofficial = isUnofficial(lines.map((l) => l.text)); // warned on the preview (DGS 2026-09-17)
+                // The page copies are held only beside an open preview (Batch C answer (5)).
+                const dropPages = () => emptyPageImages(pageImages);
                 if (parsed.looksLikeNotreDame) {
+                  dropPages();
                   failSlot(slot, `${ndInPreviousRow(student)} Use the digital PDF from insideND there, not a scan.`, render);
                   return;
                 }
-                if (!previewFromParsed(parsed, slot, args, { unofficial, fromOcr: true, ocrReducedPages: reducedPages, ocrTurned: turned })) {
+                const made = previewFromParsed(parsed, slot, args, { unofficial, fromOcr: true, ocrReducedPages: reducedPages, ocrTurned: turned });
+                if (!made || !preview) {
+                  dropPages();
                   failSlot(slot, BACHELORS_IN_PROGRESS, render);
                   return;
                 }
+                // The scanned line of each row (Batch C answer (5), DGS
+                // 2026-10-09): the part of the page its source lines sit on,
+                // held beside the preview's rows — never on them.
+                const pageSize = (page: number) => {
+                  const img = pageImages.get(page);
+                  return img && img.scale > 0 ? { width: img.canvas.width / img.scale, height: img.canvas.height / img.scale } : undefined;
+                };
+                const regions = new Map<object, StripRegion>();
+                parsed.courses.forEach((c, k) => {
+                  const region = stripRegion(lines, c.sourceLines, pageSize);
+                  const row = made.mapped[k];
+                  if (region && row) regions.set(row, region);
+                });
+                holdScanStrips(preview, pageImages, regions);
                 if (parsed.courses.length === 0) {
                   previewError = `OCR finished but found no course-like lines (${pagesRead} of ${pagesTotal} pages read). You can add the courses by hand below.`;
                 } else if (pagesTotal > pagesRead) {
@@ -1198,6 +1250,10 @@ function previewRow(
     el('td', { class: `cell-meta${termLocked ? ' locked-cell' : ''}`, 'data-label': 'Term' }, seasonSel),
     termLocked ? el('td', { class: 'cell-meta cell-empty', 'data-label': 'Year' }) : el('td', { class: 'cell-meta', 'data-label': 'Year' }, yearIn),
     el('td', { class: 'cell-meta level-cell', 'data-label': 'Taken as' }, levelSel),
+    // The scanned line this row was read from (Batch C answer (5), DGS
+    // 2026-10-09): at once on a flagged row, behind "show the scanned line"
+    // on the others — OCR previews only, and only while the preview is open.
+    ((strip) => (strip ? el('td', { class: 'cell-scan', 'data-label': 'Scanned line' }, strip) : null))(scanStripFor(p, r, i, r.lowConfidence === true)),
   );
   return tr;
 }
@@ -1416,6 +1472,8 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       el('th', { scope: 'col' }, 'Year'),
       // .level-head: the one header the compact preview shows (DGS 2026-09-07).
       el('th', { scope: 'col', class: 'level-head', title: `Your status when you took the course — not the course’s level. A graduate-level course taken before your bachelor’s degree was awarded still counts as undergraduate coursework${student.program === 'phd' ? ': §4.4.1 core knowledge only, no transfer credit (§5.2).' : ', which brings no transfer credit (§5.2).'}` }, 'Taken as'),
+      // The scanned lines' column (Batch C answer (5)) — OCR previews only.
+      holdsScanStrips(p) ? el('th', { scope: 'col', class: 'scan-head' }, el('span', { class: 'visually-hidden' }, 'Scanned line')) : null,
     ),
   );
   const blockedNote = blockedRowNote(student.program);
@@ -1527,26 +1585,8 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               const graduateCandidates = [...new Set(earlier.filter((c) => c.degreeLevel === 'masters' || c.degreeLevel === 'phd').map((c) => c.institution!))];
               const graduateAt = graduateCandidates.length === 1 ? graduateCandidates[0] : undefined;
               for (const r of ready) {
-                const degreeLevel = degreeLevelFor(p.slot, r.level);
-                if (degreeLevel !== 'bachelors') graduateRows += 1;
-                const row: CourseEntry = {
-                  courseId: canonicalCourseId(r.courseId),
-                  title: r.title.trim() || undefined,
-                  credits: r.credits!,
-                  term: { season: r.season, year: r.year! },
-                  grade: r.grade as Grade,
-                  origin: 'transfer',
-                  institution: university,
-                  degreeLevel,
-                  // Notre Dame rows keep their registered level so a later
-                  // entry-term change can re-file them (prior-nd.ts).
-                  registeredLevel: isNotreDameInstitution(university) ? r.level : undefined,
-                  // The emails warn which transcripts were unofficial (DGS 2026-10-03).
-                  ...(p.unofficial ? { fromUnofficialTranscript: true as const } : {}),
-                  // The mark as printed, when the student mapped it to a letter (2026-10-03).
-                  ...(r.rawGrade ? { transcriptMark: r.rawGrade } : {}),
-                  ...((p.creditSystem === 'quarter' || p.creditSystem === 'trimester') && !isNotreDameInstitution(university) ? { creditSystem: p.creditSystem } : {}),
-                };
+                const row = courseEntryOf(r, p, university);
+                if (row.degreeLevel !== 'bachelors') graduateRows += 1;
                 s.courses.push(row);
                 // The same course already on the record as the Notre Dame
                 // transcript's accepted transfer credit: one course, this row,
@@ -1641,6 +1681,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             const matched = ready.filter((r) => findExternalRule(rules.external, university, r.courseId)).length;
             const undergraduateRows = ready.length - graduateRows;
             preview = undefined;
+            releaseScanStrips();
             previewError = undefined;
             render();
             toast(
@@ -1671,7 +1712,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
         // 'selected' — the word Select all / Select none and the ND preview use (trim review 2026-09-18, P-58).
         `Add ${selected} selected course${selected === 1 ? '' : 's'}`,
       ),
-      el('button', { class: 'btn', 'data-key': 'ext.preview.cancel', onclick: () => { preview = undefined; previewError = undefined; render(); } }, 'Cancel'),
+      el('button', { class: 'btn', 'data-key': 'ext.preview.cancel', onclick: () => { preview = undefined; releaseScanStrips(); previewError = undefined; render(); } }, 'Cancel'),
     ),
   );
   return box;

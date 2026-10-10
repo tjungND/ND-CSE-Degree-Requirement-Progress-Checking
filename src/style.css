@@ -1017,6 +1017,14 @@ tr.ocr-low td { background: var(--note-bg); }
 /* What the scan showed in a credits or grade cell the OCR numeric correction filled (Batch C answer (4),
    DGS 2026-10-09): under the value, small, in the scan's own characters. */
 .transcript-preview .ocr-raw { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); white-space: nowrap; cursor: help; }
+/* The scanned line beside an OCR preview row (Batch C answer (5), DGS 2026-10-09): the strip fills the
+   row's width but is never shown below 60 % of its own pixels (an inline min-width) — a narrower card
+   scrolls it sideways, on a thin rule in both themes (the scan paints its own paper). On a flagged row it is shown; on the
+   others it waits behind "show the scanned line". */
+.transcript-preview td.cell-scan { min-width: 220px; }
+.transcript-preview .scan-strip { max-width: 100%; overflow-x: auto; }
+.transcript-preview .scan-strip canvas { display: block; width: 100%; height: auto; margin-top: 4px; border: 1px solid var(--line); border-radius: 4px; }
+.transcript-preview details.scan-line > summary { font-size: 12px; color: var(--muted); cursor: pointer; width: max-content; }
 
 /* ---------- phones and tablets (2026-09-05, usability review items 2, 13, 30) ---------- */
 /* Wide screens: the report sits beside the inputs, so the mobile-only pieces stay hidden. */
@@ -1129,6 +1137,7 @@ tr.ocr-low td { background: var(--note-bg); }
   table.courses.stack td.cell-meta::before { content: attr(data-label) ': '; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
   table.courses.stack td.cell-note { order: 4; flex: 0 0 100%; max-width: none; }
   table.courses.stack td.cell-note:empty { display: none; }
+  table.courses.stack td.cell-scan { order: 5; flex: 0 0 100%; min-width: 0; }
   table.courses.stack .cid { white-space: normal; }
   .table-scroll.plain { overflow: visible; }
   /* The editable preview (external transcripts): one small form per course. */
@@ -1164,6 +1173,7 @@ tr.ocr-low td { background: var(--note-bg); }
   .transcript-preview table.courses.stack.edit td.cell-course { order: 0; flex: 0 1 150px; min-width: 110px; }
   .transcript-preview table.courses.stack.edit td.cell-title { order: 1; flex: 1 1 220px; min-width: 0; width: auto; }
   .transcript-preview table.courses.stack.edit td.cell-meta { order: 3; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+  .transcript-preview table.courses.stack.edit td.cell-scan { order: 5; flex: 0 0 100%; min-width: 0; }
   .transcript-preview table.courses.stack.edit td.cell-meta::before { content: attr(data-label); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
   .transcript-preview table.courses.stack.edit td.cell-course::before, .transcript-preview table.courses.stack.edit td.cell-title::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
   .transcript-preview table.courses.stack.edit input, .transcript-preview table.courses.stack.edit select { max-width: 100%; }

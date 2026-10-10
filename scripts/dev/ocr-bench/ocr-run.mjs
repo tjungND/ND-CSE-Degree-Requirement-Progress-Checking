@@ -26,6 +26,8 @@
 //              its words (OCR_LINE_CONFIDENCE), the previous page's column hint handed on
 //              — imported from src/transcript/ocr-lines.ts, never copied by hand
 //   ocr.ts     an empty line after every page (the page break the parser expects)
+//   (not mirrored: ocr.ts tags each line with its page and keeps a small copy of each page for
+//   the preview's scanned-line strips — Batch C answer (5), 2026-10-09; neither reaches the parser)
 //
 // Knobs (each one an experiment the plan's steps 10–12 measure before it
 // touches src/):

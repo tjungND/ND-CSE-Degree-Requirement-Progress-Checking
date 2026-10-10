@@ -26,6 +26,13 @@ export interface OcrLine {
   /** 0–100: the least confident word on the line (`OCR_LINE_CONFIDENCE`);
    * rows read from a line under the parser's floor are flagged. */
   confidence: number;
+  /** Where the line sits on the page image the engine read, in that image's
+   * pixels (the union of its words' boxes; Batch C answer (5), DGS
+   * 2026-10-09): the preview crops the scanned line from it. Absent on a
+   * line no engine word made (a page break, a watermark's institution line). */
+  box?: OcrBox;
+  /** The 1-based page the line was read from (ocr.ts sets it). */
+  page?: number;
 }
 
 /** The engine parameters the app sets once the worker is up — none today.
@@ -210,6 +217,9 @@ export interface OcrRun extends Run {
   confidence: number;
   /** The engine's confidence in the line the word came from. */
   lineConfidence: number;
+  /** The run's words' boxes together, in the engine image's pixels — what
+   * an emitted line's `box` is made of (Batch C answer (5)). */
+  box: OcrBox;
 }
 
 /** Which figure an emitted line's confidence is (the `confidence` option of
@@ -302,8 +312,9 @@ export function blocksToRuns(blocks: readonly OcrBlockLike[] | null | undefined,
             current.text += ` ${word.text}`;
             current.width = Math.max(current.width, word.bbox.x1 / scale - current.x);
             current.confidence = Math.min(current.confidence, word.confidence);
+            current.box = unionBox(current.box, word.bbox);
           } else {
-            current = { x: word.bbox.x0 / scale, y, text: word.text, width: Math.max(0, word.bbox.x1 - word.bbox.x0) / scale, confidence: word.confidence, lineConfidence: line.confidence };
+            current = { x: word.bbox.x0 / scale, y, text: word.text, width: Math.max(0, word.bbox.x1 - word.bbox.x0) / scale, confidence: word.confidence, lineConfidence: line.confidence, box: { ...word.bbox } };
             runs.push(current);
           }
           endPx = Math.max(endPx, word.bbox.x1);
@@ -375,9 +386,24 @@ export function ocrPageLayout(
   for (let i = 0; i < read.lines.length; i++) {
     const text = read.lines[i]!;
     if (text === '') continue;
-    lines.push({ text, confidence: lineConfidence(read.lineRuns[i] ?? [], rule) });
+    const lineRuns = read.lineRuns[i] ?? [];
+    const box = lineBox(lineRuns);
+    lines.push({ text, confidence: lineConfidence(lineRuns, rule), ...(box !== undefined ? { box } : {}) });
   }
   return { lines, ...(read.hint !== undefined ? { hint: read.hint } : {}) };
+}
+
+/** The smallest box holding both. */
+function unionBox(a: OcrBox, b: OcrBox): OcrBox {
+  return { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) };
+}
+
+/** The pixel box of an emitted line: its engine runs' boxes together, or
+ * undefined when no run of it came from the engine. */
+function lineBox(runs: readonly Run[]): OcrBox | undefined {
+  let box: OcrBox | undefined;
+  for (const r of runs) if (isOcrRun(r) && r.box !== undefined) box = box === undefined ? { ...r.box } : unionBox(box, r.box);
+  return box;
 }
 
 /** `ocrPageLayout` for a single page read on its own: just the lines. */
