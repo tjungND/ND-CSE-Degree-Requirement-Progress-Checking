@@ -390,6 +390,20 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   DGS answers (CC15, CC16, TH02, the transcript gate, the CUNY and trimester questions, open
   question (g)), plan steps 2.5–2.7 (the header-mapped cell path's tolerance of OCR noise is what
   turns the 300-dpi gain on; the two-pass deskew), then the engine gate (step 14).
+- **Batch C, the text side** (2026-10-09 — the DGS's answers (1)–(3) and CC16; `418f9d1` `33e037f` `300eb52` `3f9a7f3`, plan §5 has
+  the numbers). In `src/transcript/external.ts`: “Code-less rows” (`codelessFit` → `readCodelessCells`, `readCreditBreakdown`,
+  `readCodelessRow`; a candidate with `codeMissing: true` has `courseId: ''`, and a document with any coded row keeps none of them —
+  the filter after the loop); `readMappedValues` (scanWithMap's value reading, shared with the code-less reader; the “Full Mark”
+  exception to GT05 lives there); `sideBySide()` / `sideBySideHalves` and `semesterColumns` / `placeSemester` (CC16 — the
+  “First Semester   Second Semester” line heads two columns and is no term header); `COUNTRY_CALENDARS` / `countryCalendar` /
+  `calendarSemester` beside `readTermLine` (TH02 — add a country with its source and a header-cell evidence pattern; the table
+  is consulted only for NUMBERED semesters and never when a term prints its months); `adjacentConferral` beside
+  `degreeConferred`. In `src/ui/external-upload.ts`: `previewRowOf` (a code-less row starts unticked), `idStillMissing`,
+  `readyToAdd`, `CODE_MISSING_NOTE` / `codeMissingHint` (W-CL407–W-CL409); `undergraduateInProgress` treats a printed raw
+  result as final. `sameTransferCourse` refuses two empty ids. The replay scorer pairs code-less rows by title. Pinned by
+  `tests/codeless-import.test.ts` and the four Batch C blocks of `tests/public-transcript-rules.test.ts`. A parser change to
+  these paths is measured on the OCR side by re-parsing the saved `ocr-lines.json` of a bench run (the OCR agent's
+  `--reparse`, or a HEAD-vs-change A/B of the parser on those lines) — no engine run needed.
 - **Batch A at a glance** (2026-10-09, transcript accuracy program — the index; the two bullets
   after this one carry the reasons, STATE.md's "Batch A done" paragraph and
   `docs/TRANSCRIPT-ACCURACY-PLAN.md` §5 the numbers). The harness:

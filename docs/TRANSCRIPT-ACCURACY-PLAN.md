@@ -850,3 +850,69 @@ Open issues, all steps (the DGS's are marked):
   renders never run (estimated only); the engine gate (step 14) not started; line CER is
   order-sensitive (a multi-column page read across columns scores high even with every word right).
 - The sign-off ladder `ocr-full-20261009/` — its board to be pasted (above).
+
+### Batch C, the text side — done 2026-10-09 (branch `claude/policy-compliance-degree-engine-44a431`)
+
+The DGS's Batch C answers (DECISIONS 2026-10-09, “I will follow your recommendations for all”), the
+four that are parser and preview work, one commit each; each verified with `npx tsc --noEmit` and the
+full `npm test` on the index tree before it was made (another agent's OCR step-2.5 edits to
+`external.ts` were in the working tree and were left out of every commit), the replay against the
+previous item's file, and the OCR side as a parser-only A/B — every saved OCR line set
+(`ocr-step25-before-20261009`, `ocr-step25-flat300-medium`, written by the OCR agent's runs) re-parsed
+with the previous commit's parser and with the item's:
+
+- `418f9d1` item 1, **CC15** — code-less rows imported with an EMPTY, required course-id box: two
+  shapes only (a line lining up cell for cell with a header that names a title and no code column;
+  Evergreen's credit breakdown that adds up to its program line), none kept in a document that prints
+  a course number on any row; the preview's row starts unticked, its id box required, its tick box
+  disabled until an id is typed (W-CL407–W-CL410); `''` never reaches `canonicalCourseId`, the saved
+  record, the review request or the duplicate check. Cairo's “Full Mark” column and banded “Pass
+  60-64%” read from the transcript's own evidence; a raw printed result is no longer “still in
+  progress”. The scorer pairs code-less rows by title.
+- `33e037f` item 2, **CC16** — side-by-side semesters split at the header's second group; each half
+  under its column's semester; a one-group line's term left blank.
+- `300eb52` item 3, **TH02** — `COUNTRY_CALENDARS` beside `readTermLine`, Thailand first, with its
+  source; the country only from a header cell; only numbered semesters; never where a term prints its
+  months.
+- `3f9a7f3` item 4 — the **adjacent-line graduate conferral**, both labels required.
+- the records commit “Batch C text side: records” — this section, STATE.md, the handoff's bullet.
+
+Numbers — before is `bench-out/text-final-20261009.json` (the end of Batch B), after is
+`bench-out/text-batch-c-final.json`; per item `text-batch-c-cc15.json`, `-cc16.json` (rewritten from the
+item-2 commit), `-th02.json`. 0 regressions at every step; false rows on the negatives unchanged.
+
+| | before | CC15 | CC16 | TH02 | adjacent conferral |
+|---|---|---|---|---|---|
+| public exact | 147/168 | 151 | 151 | 151 | 152/168 (90.5 %) |
+| known-failing | 21 | 17 | 17 | 17 | 16 |
+| public row recall / precision | 91.9 / 99.1 % | 94.8 / 99.1 % | 95.8 / 99.1 % | 95.8 / 99.1 % | 95.8 / 99.1 % |
+| public term cells | 97.8 % | 97.7 % | 97.1 % | 97.5 % | 97.5 % |
+| false rows on negatives | 1 (in 1/39) | 1 | 1 | 1 | 1 (the McGill course outline) |
+| pdfs exact / recall | 47/49, 90.6 % | 48/49, 100 % | unchanged | unchanged | 48/49, 100 % |
+| ms corpus | 48/48, 648/648 | unchanged | unchanged | unchanged | unchanged |
+| OCR re-parse, documents changed | — | 0 of 177 + 44 | 0 of 196 + 78 | 0 of 205 + 97 | 0 of 223 + 120 |
+| `npm test` (index tree) | 1615 | 1677 | 1681 | 1685 | 1687 |
+
+(The term-cell dip at CC16 is the sjtu template's rows found with blank terms: its single-year
+“Academic Year” needs a country calendar the template gives no country for.) On OCR lines the Evergreen
+seed of the flat-300 medium run reads its 19 code-less rows exactly at L2 and L5.
+
+Deviations, each in DECISIONS (2026-10-09): cairo's expectation lost its bachelor's date (19 lines from
+the degree name — no rule reaches it, the adjacent-line rule included) and nankai's gained the graduate
+level its heading gives; sjtu's six one-group rows expect a blank term; `undergraduateInProgress` reads a
+printed raw result as final (otherwise the bachelor's statements CC15 was decided for were refused); the
+e2e was not run (the task excluded it — the preview's code-less row is UI-visible and needs the e2e on
+both engines from the agent told to run it).
+
+Open issues (the DGS's are marked):
+
+- **DGS:** may a city in the university's name stand for the country (SJTU's template prints
+  “SHANGHAI JIAOTONG UNIVERSITY” and no country)? With China in the calendar table (first semester = the
+  fall), sjtu-lifelong-template's fourteen two-group rows and its 2003 table would read their terms.
+- **DGS:** a Thai “Summer Session 2022” keeps its printed year (academic year 2022's summer falls in
+  2023); Buddhist-era years (“2565”) are not read.
+- Coded side-by-side tables (a course number in each half) are not split — no specimen.
+- The e2e on Chrome and WebKit for the code-less preview row (`ext.row.N.id` empty and required, the
+  tick box disabled, W-CL409 above the table) — a driver step and screenshots.
+- Batch C's OCR answers (numeric corrections beside the raw reading, the scanned-line image strip,
+  scanner-embedded text layers as OCR-grade) belong to the OCR steps 2.5–2.7.
