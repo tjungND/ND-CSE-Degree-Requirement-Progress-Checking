@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
-import { THEME_KEY, resolveTheme } from '../src/ui/theme.ts';
+import { FORCED_DARK_LINK, THEME_KEY, resolveTheme } from '../src/ui/theme.ts';
 
 describe('night mode (src/ui/theme.ts)', () => {
   it('Auto follows the device; Light and Dark ignore it', () => {
@@ -16,6 +16,22 @@ describe('night mode (src/ui/theme.ts)', () => {
   it('embedded in a light WordPress page, Auto stays light but Dark is honoured', () => {
     assert.equal(resolveTheme('auto', true, true), 'light');
     assert.equal(resolveTheme('dark', false, true), 'dark');
+  });
+
+  it('a browser forcing pages dark (Opera’s "Force dark pages") gets the page’s own dark theme on Auto — in the frame too; Light is still honoured', () => {
+    assert.equal(resolveTheme('auto', false, false, true), 'dark');
+    assert.equal(resolveTheme('auto', false, true, true), 'dark');
+    assert.equal(resolveTheme('light', false, false, true), 'light');
+    assert.equal(resolveTheme('auto', false, false, false), 'light');
+  });
+
+  it('both pages’ first-paint scripts probe forced dark with the same link colour as theme.ts', () => {
+    for (const page of ['index.html', 'courses.html']) {
+      const html = readFileSync(new URL(`../${page}`, import.meta.url), 'utf8');
+      const head = html.slice(0, html.indexOf('</head>'));
+      assert.ok(head.includes(`getComputedStyle(a).color === '${FORCED_DARK_LINK}'`), `${page}: the inline script probes ${FORCED_DARK_LINK}`);
+      assert.ok(head.includes("color-scheme:light") && head.includes('(forced-colors: active)'), page);
+    }
   });
 
   it('both pages set the theme in <head> with the same storage key, before the first paint', () => {

@@ -7,6 +7,8 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sessionHelpers, settleIn } from './session-common.mjs';
 
+const HEADED = process.env.E2E_HEADED === '1';
+
 export async function openSession(debugPort, outDir) {
   const target = await (
     await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`, { method: 'PUT' })
@@ -35,7 +37,11 @@ export async function openSession(debugPort, outDir) {
     });
 
   const evalJs = async (expression) => {
-    const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+    // In a real window (E2E_HEADED=1) a click the driver makes by script is
+    // no person's gesture, and the page may not write the clipboard: Opera
+    // held the write open and the copy dialog never came (2026-10-10). Run as
+    // a user gesture there, as headless Chrome already lets the page do.
+    const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, ...(HEADED ? { userGesture: true } : {}) });
     if (r.exceptionDetails) {
       throw new Error(
         'page JS failed: ' +

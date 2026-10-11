@@ -15,6 +15,7 @@ description: Launch, drive, and screenshot the degree-audit app. Use when asked 
 | The same e2e on Safari's engine (WebKit) | `E2E_BROWSER=webkit npm run e2e` (= `npm run e2e:webkit`) → `.e2e-out/webkit/` |
 | One-time WebKit setup per Mac | `npx playwright-core install webkit` (≈100 MB, into `~/Library/Caches/ms-playwright/`) |
 | The same e2e on Firefox (Gecko) | `E2E_BROWSER=firefox npm run e2e` (= `npm run e2e:firefox`) → `.e2e-out/firefox/` — the installed Firefox, no setup |
+| The same e2e in Opera | `E2E_BROWSER=opera npm run e2e` (= `npm run e2e:opera`) → `.e2e-out/opera/` — the installed Opera, headless; `E2E_HEADED=1` for its real window; `E2E_BLINK_PREFS='<json>'` to start it with a setting on (Force dark pages: see `scripts/e2e/run.mjs`) |
 | The same e2e in REAL Safari | `E2E_BROWSER=safari npm run e2e` (= `npm run e2e:safari`) → `.e2e-out/safari/` — needs Safari → Settings → Developer → "Allow remote automation" once, an unlocked screen, and its window left alone |
 | Two runs side by side | `E2E_PORT=<port>` (preview server, default 4273) and `E2E_DEBUG_PORT=<port>` (Chrome's DevTools port, default 9333) |
 | One driver only, while iterating | `E2E_ONLY=<substring of the driver name> npm run e2e` (e.g. `E2E_ONLY=access`) |

@@ -556,6 +556,11 @@ table.courses .feeds-hidden .counts-toward.now { display: none; }
 /* Conditional satisfaction reads as its own band on the ring, in the same blue
    as its pill (interface review R2, 2026-09-18). */
 .dial-arc-conditional { opacity: 0.75; }
+/* In night mode --navy and --info are both light blues (about 1.5:1 apart), so
+   the met and conditionally met bands read as one arc (Opera review,
+   2026-10-10): the conditional band is half as wide there, a shape cue that
+   needs no colour. */
+@media screen { :root[data-theme="dark"] .dial-arc-conditional { opacity: 1; stroke-width: 4; } }
 /* The key to the ring's bands (interface review R2, 2026-09-18): what each
    band means, in words and in colour, so the ring never has to be guessed at.
    Moved into the headline (trim review 2026-09-18, P-49): the headline already

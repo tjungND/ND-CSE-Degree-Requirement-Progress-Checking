@@ -17,9 +17,17 @@
 // light, and a dark frame inside it would look broken. A reader who picks Dark
 // still gets it.
 //
+// A browser that repaints light pages dark by itself (DGS 2026-10-10, Opera):
+// Opera's "Force dark pages" ignores the page's `color-scheme`, and its
+// repaint hid the ring's "4/12", made chosen radio buttons look empty, merged
+// the progress fills with their tracks and dropped the focus outlines. Auto
+// then shows this page's OWN dark theme, which the repaint leaves readable —
+// in the frame too, since the host page is being darkened as well. A reader
+// who picks Light still gets it.
+//
 // index.html and courses.html carry a few lines of the same logic inline in
 // <head>, so the first paint is already in the right theme; keep the two in
-// step (THEME_KEY and the embed rule).
+// step (THEME_KEY, the embed rule and the forced-dark probe).
 import { el } from './dom.ts';
 import { isEmbedded } from './embed.ts';
 
@@ -48,11 +56,38 @@ function saveThemePref(pref: ThemePref): void {
   }
 }
 
-/** Light or dark, for a choice and the device's current setting. Pure, so it
- * is tested directly. */
-export function resolveTheme(pref: ThemePref, deviceDark: boolean, embedded: boolean): 'light' | 'dark' {
+/** Light or dark, for a choice, the device's current setting, the frame, and
+ * whether the browser is forcing pages dark. Pure, so it is tested directly. */
+export function resolveTheme(pref: ThemePref, deviceDark: boolean, embedded: boolean, forcedDark = false): 'light' | 'dark' {
   if (pref !== 'auto') return pref;
+  if (forcedDark) return 'dark';
   return deviceDark && !embedded ? 'dark' : 'light';
+}
+
+/** The colour a Chromium-based browser gives an unvisited link in the DARK
+ * colour scheme. A link told to use the LIGHT scheme gets it only when the
+ * browser is forcing the page dark (Opera's "Force dark pages", Chrome's auto
+ * dark mode): elsewhere it is the light scheme's rgb(0, 0, 238), in Safari and
+ * Firefox too. Measured in Opera 137, 2026-10-10. */
+export const FORCED_DARK_LINK = 'rgb(158, 158, 255)';
+
+/** Is the browser repainting this page dark? Read from a hidden probe link in
+ * the light scheme (see FORCED_DARK_LINK). Never under forced colours (a
+ * high-contrast theme), where every colour is the system's anyway. */
+export function browserForcesDark(): boolean {
+  try {
+    if (window.matchMedia('(forced-colors: active)').matches) return false;
+    const a = document.createElement('a');
+    a.href = '#';
+    a.setAttribute('aria-hidden', 'true');
+    a.style.cssText = 'position:absolute;left:-9999px;color-scheme:light';
+    document.documentElement.append(a);
+    const color = getComputedStyle(a).color;
+    a.remove();
+    return color === FORCED_DARK_LINK;
+  } catch {
+    return false;
+  }
 }
 
 function deviceDark(): boolean {
@@ -67,7 +102,7 @@ let current: ThemePref = 'auto';
 const toggles = new Set<HTMLElement>();
 
 function apply(): void {
-  document.documentElement.dataset.theme = resolveTheme(current, deviceDark(), isEmbedded());
+  document.documentElement.dataset.theme = resolveTheme(current, deviceDark(), isEmbedded(), browserForcesDark());
   for (const t of toggles) {
     if (!t.isConnected) {
       toggles.delete(t);

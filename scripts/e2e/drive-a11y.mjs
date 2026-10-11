@@ -552,7 +552,13 @@ async function checkNightMode(s, page, label) {
   await s.evalJs(`document.querySelector('[data-key="theme.auto"]').click()`);
   await s.settle();
   const back = await s.evalJs(`document.documentElement.dataset.theme`);
-  if (back !== 'light') throw new Error('night mode: Auto did not return a light-device page to light — ' + back);
+  // Auto is dark only where the browser forces pages dark (Opera's "Force dark
+  // pages", DGS 2026-10-10 — a run with E2E_BLINK_PREFS turning it on): the
+  // same probe as src/ui/theme.ts, so a normal run of any engine still expects
+  // light, and the forced-dark run expects the page's own dark theme.
+  const forced = await s.evalJs(`(() => { const a = document.createElement('a'); a.href = '#'; a.style.cssText = 'position:absolute;left:-9999px;color-scheme:light'; document.documentElement.append(a); const c = getComputedStyle(a).color; a.remove(); return c === 'rgb(158, 158, 255)'; })()`);
+  if (back !== (forced ? 'dark' : 'light')) throw new Error(`night mode: Auto on a light device ${forced ? 'whose browser forces pages dark must be the page’s own dark theme' : 'must return the page to light'} — ` + back);
+  if (forced) console.log('  the browser forces pages dark: Auto shows the page’s own dark theme');
   console.log(`  night mode: Dark turns the ${label} dark with no contrast violations; Auto returns it to light`);
 }
 

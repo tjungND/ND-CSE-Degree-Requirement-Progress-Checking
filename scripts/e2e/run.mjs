@@ -11,6 +11,19 @@
 //                                    screenshots in .e2e-out/firefox/. FIREFOX_BIN overrides
 //                                    the binary. Edge, Opera and Brave are Chromium — the
 //                                    Chrome run covers their engine.
+//   E2E_BROWSER=opera npm run e2e    the installed Opera (Blink, Opera's own Chromium build),
+//     (= npm run e2e:opera)          headless, over the DevTools Protocol exactly as Chrome
+//                                    (cdp.mjs); screenshots in .e2e-out/opera/. OPERA_BIN
+//                                    overrides the binary.
+//   E2E_HEADED=1                     Chrome or Opera in a real window instead of headless (the
+//                                    browser's own window and UI; the page size is still set by
+//                                    emulation, so the checks are the same)
+//   E2E_BLINK_PREFS='<json>'         Chrome or Opera started with these browser preferences in
+//                                    its fresh profile — a setting a student may have on, e.g.
+//                                    Opera's "Force dark pages":
+//                                    '{"ui":{"webkit":{"force_dark_mode_enabled_proxy":true}},
+//                                      "webkit":{"webprefs":{"force_dark_mode_enabled":true}},
+//                                      "profile":{"default_content_setting_values":{"force_dark_mode":1}}}'
 //   E2E_BROWSER=safari npm run e2e   REAL Safari (not headless: its automation window opens;
 //     (= npm run e2e:safari)         do not click into it) over classic WebDriver through
 //                                    safaridriver (scripts/e2e/safari.mjs) and the SAME drivers;
@@ -24,7 +37,7 @@
 //                                    Firefox default 0 = any free port); Chrome's throwaway
 //                                    profile is per port, so two Chrome runs never share one
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,8 +49,8 @@ import { driveTranscript } from './drive-transcript.mjs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const browserKind = (process.env.E2E_BROWSER ?? 'chrome').toLowerCase();
-if (!['chrome', 'webkit', 'firefox', 'safari'].includes(browserKind)) {
-  console.error(`E2E_BROWSER must be "chrome" (the default), "webkit", "firefox" or "safari", not "${process.env.E2E_BROWSER}".`);
+if (!['chrome', 'webkit', 'firefox', 'safari', 'opera'].includes(browserKind)) {
+  console.error(`E2E_BROWSER must be "chrome" (the default), "webkit", "firefox", "safari" or "opera", not "${process.env.E2E_BROWSER}".`);
   process.exit(2);
 }
 
@@ -55,9 +68,13 @@ const PREVIEW_PORT = portFrom('E2E_PORT', 4273); // not 4173, so a dev's own pre
 // Chrome's DevTools port, or Firefox's WebDriver BiDi port (0: Firefox picks a
 // free one and says which). WebKit is launched by Playwright, which needs none.
 // safaridriver's port for Safari (default 4444).
-const DEBUG_PORT = portFrom('E2E_DEBUG_PORT', browserKind === 'firefox' ? 0 : browserKind === 'safari' ? 4444 : 9333);
-if ((browserKind === 'chrome' || browserKind === 'safari') && DEBUG_PORT === 0) {
-  console.error('E2E_DEBUG_PORT=0 works for Firefox only; give Chrome or Safari a real port.');
+// Opera's DevTools port defaults to 9334, so a Chrome run and an Opera run can go
+// on side by side (with their own E2E_PORT).
+const DEBUG_PORT = portFrom('E2E_DEBUG_PORT', browserKind === 'firefox' ? 0 : browserKind === 'safari' ? 4444 : browserKind === 'opera' ? 9334 : 9333);
+/** Chrome and Opera are both Blink over the DevTools Protocol: one launch path. */
+const blink = browserKind === 'chrome' || browserKind === 'opera';
+if ((blink || browserKind === 'safari') && DEBUG_PORT === 0) {
+  console.error('E2E_DEBUG_PORT=0 works for Firefox only; give Chrome, Opera or Safari a real port.');
   process.exit(2);
 }
 
@@ -79,7 +96,7 @@ if (await answers(`http://localhost:${PREVIEW_PORT}/`)) {
   console.error(`Port ${PREVIEW_PORT} is already in use (another e2e run?) — set E2E_PORT to a free one.`);
   process.exit(2);
 }
-if (browserKind === 'chrome' && (await answers(`http://127.0.0.1:${DEBUG_PORT}/json/version`))) {
+if (blink && (await answers(`http://127.0.0.1:${DEBUG_PORT}/json/version`))) {
   console.error(`Port ${DEBUG_PORT} is already in use by another browser — set E2E_DEBUG_PORT to a free one.`);
   process.exit(2);
 }
@@ -97,6 +114,13 @@ const outDir = browserKind === 'chrome' ? outRoot : join(outRoot, browserKind);
 if (browserKind !== 'chrome') rmSync(outDir, { recursive: true, force: true });
 else if (existsSync(outRoot)) for (const f of readdirSync(outRoot)) if (f.endsWith('.png')) rmSync(join(outRoot, f));
 mkdirSync(outDir, { recursive: true });
+
+function findOpera() {
+  if (process.env.OPERA_BIN) return process.env.OPERA_BIN;
+  const candidates = ['/Applications/Opera.app/Contents/MacOS/Opera', '/usr/bin/opera', '/usr/lib/x86_64-linux-gnu/opera/opera', '/snap/bin/opera'];
+  for (const c of candidates) if (existsSync(c)) return c;
+  throw new Error('No Opera found — install it, or set OPERA_BIN to the browser binary.');
+}
 
 function findChrome() {
   if (process.env.CHROME_BIN) return process.env.CHROME_BIN;
@@ -212,19 +236,28 @@ try {
     console.log(`Safari ${safariBrowser.version} up (WebDriver, safaridriver on :${DEBUG_PORT}) — do not click into its window`);
     openSessionFor = () => safariBrowser.openSession(outDir);
   } else {
+    // Chrome, or Opera (2026-10-10: Opera is Blink — Opera's own Chromium
+    // build — and speaks the same DevTools Protocol, so cdp.mjs drives it).
     // One profile per port: a second Chrome on the same profile would hand its
     // tabs to the first and quit. Emptied first, as WebKit's context and
     // Firefox's profile start empty: a record the last run left in it made
     // Chrome's opening notice a returning student's (2026-10-10).
-    const chromeProfile = join(tmpdir(), `cse-audit-e2e-profile-${DEBUG_PORT}`);
+    const headed = process.env.E2E_HEADED === '1';
+    const chromeProfile = join(tmpdir(), `cse-audit-e2e-profile-${browserKind === 'opera' ? 'opera-' : ''}${DEBUG_PORT}`);
     rmSync(chromeProfile, { recursive: true, force: true });
+    if (process.env.E2E_BLINK_PREFS) {
+      mkdirSync(join(chromeProfile, 'Default'), { recursive: true });
+      writeFileSync(join(chromeProfile, 'Default', 'Preferences'), JSON.stringify(JSON.parse(process.env.E2E_BLINK_PREFS)));
+      console.log('browser preferences seeded: ' + process.env.E2E_BLINK_PREFS);
+    }
     const chrome = spawn(
-      findChrome(),
+      browserKind === 'opera' ? findOpera() : findChrome(),
       [
-        '--headless=new',
+        ...(headed ? [] : ['--headless=new']),
         `--remote-debugging-port=${DEBUG_PORT}`,
         `--user-data-dir=${chromeProfile}`,
         '--no-first-run',
+        '--no-default-browser-check',
         '--no-sandbox', // required on CI runners; harmless locally
         'about:blank',
       ],
@@ -232,7 +265,9 @@ try {
     );
     children.push(chrome);
     await waitForHttp(`http://127.0.0.1:${DEBUG_PORT}/json/version`);
-    console.log('headless Chrome up');
+    const version = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/version`)).json().catch(() => ({}));
+    const opera = /OPR\/([\d.]+)/.exec(version['User-Agent'] ?? '')?.[1];
+    console.log(`${headed ? '' : 'headless '}${browserKind === 'opera' ? `Opera ${opera ?? '?'} (${version.Browser ?? 'Chromium ?'})` : 'Chrome'} up`);
     openSessionFor = () => openSession(DEBUG_PORT, outDir);
   }
 

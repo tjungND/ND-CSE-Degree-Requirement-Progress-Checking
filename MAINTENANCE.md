@@ -234,7 +234,13 @@ last edit (see "Sync" below).
   `E2E_BROWSER=firefox npm run e2e` runs them on the installed Firefox too (headless, a
   throwaway profile, WebDriver BiDi — `scripts/e2e/firefox.mjs`, nothing to install), with
   screenshots in `.e2e-out/firefox/`; `E2E_PORT` / `E2E_DEBUG_PORT` move the ports so two
-  engines can run at once. Also since 2026-10-10 `E2E_BROWSER=safari npm run e2e` (=
+  engines can run at once. `E2E_BROWSER=opera npm run e2e` (= `npm run e2e:opera`, 2026-10-10) runs them in the installed
+  Opera — Blink, Opera's own Chromium build — over the same DevTools Protocol as Chrome (`OPERA_BIN`
+  overrides the path), headless, screenshots in `.e2e-out/opera/`. `E2E_HEADED=1` runs Chrome or
+  Opera in a real window instead (the drivers' scripts then count as user gestures, or a
+  clipboard write waits on a permission); `E2E_BLINK_PREFS='<json>'` starts it with browser
+  preferences, e.g. Opera's “Force dark pages” (the JSON is in `scripts/e2e/run.mjs`) — under it
+  the page must show its own dark theme on Auto (`src/ui/theme.ts` `browserForcesDark`). Also since 2026-10-10 `E2E_BROWSER=safari npm run e2e` (=
   `npm run e2e:safari`) runs them in REAL Safari through `safaridriver` (classic WebDriver,
   `scripts/e2e/safari.mjs`; nothing to install), screenshots in `.e2e-out/safari/`. One-time per
   Mac: Safari → Settings → Advanced → "Show features for web developers", then Settings →

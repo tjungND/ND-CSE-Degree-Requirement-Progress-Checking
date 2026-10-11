@@ -2170,6 +2170,15 @@ pure half (tests: `tests/simulation.test.ts`); the plumbing is in `src/ui/app.ts
   a throwaway profile), screenshots in `.e2e-out/firefox/`. Run it with WebKit's whenever layout
   changed: Firefox alone draws a number box's spinner at all times, and alone printed the
   report's folds open. `E2E_PORT` / `E2E_DEBUG_PORT` move the ports.
+- `E2E_BROWSER=opera npm run e2e` (or `npm run e2e:opera`, 2026-10-10) — the installed Opera
+  through `cdp.mjs`, exactly as Chrome (Opera is Blink). `E2E_HEADED=1`: Chrome or Opera in a real
+  window (`Runtime.evaluate` then runs as a user gesture — a script click is no gesture, and Opera
+  held the clipboard write open). `E2E_BLINK_PREFS`: browser preferences in the fresh profile —
+  Opera's “Force dark pages” is `ui.webkit.force_dark_mode_enabled_proxy` +
+  `webkit.webprefs.force_dark_mode_enabled` + content setting `force_dark_mode: 1`. Opera's
+  repaint ignores `color-scheme` (`only light` too), so the page detects it instead
+  (invariant: `FORCED_DARK_LINK` in `src/ui/theme.ts` and both pages' first-paint scripts agree —
+  `tests/theme.test.ts`), and Auto shows the page's own dark theme.
 - `E2E_BROWSER=safari npm run e2e` (or `npm run e2e:safari`, 2026-10-10) — REAL Safari over
   classic WebDriver through `safaridriver` (`scripts/e2e/safari.mjs`; one session, a tab per
   driver; print media emulated as in Firefox; evalJs is an indirect eval inside Execute Async
