@@ -234,7 +234,15 @@ last edit (see "Sync" below).
   `E2E_BROWSER=firefox npm run e2e` runs them on the installed Firefox too (headless, a
   throwaway profile, WebDriver BiDi — `scripts/e2e/firefox.mjs`, nothing to install), with
   screenshots in `.e2e-out/firefox/`; `E2E_PORT` / `E2E_DEBUG_PORT` move the ports so two
-  engines can run at once. Since 2026-10-10 the transcript
+  engines can run at once. Also since 2026-10-10 `E2E_BROWSER=safari npm run e2e` (=
+  `npm run e2e:safari`) runs them in REAL Safari through `safaridriver` (classic WebDriver,
+  `scripts/e2e/safari.mjs`; nothing to install), screenshots in `.e2e-out/safari/`. One-time per
+  Mac: Safari → Settings → Advanced → "Show features for web developers", then Settings →
+  Developer → "Allow remote automation". It is not headless: Safari's striped automation window
+  opens and must stay visible — a locked or sleeping screen draws nothing, and the run stops at
+  once saying so — and clicking into it ends the session. Safari's window is never narrower than
+  336 px, so the 320 px phone checks measure 336 px (the run notes it). Safari follows the Mac's
+  light/dark setting. One Safari run at a time. Since 2026-10-10 the transcript
   driver also checks, on both engines, the OCR preview's scanned-line strips (drawn at once on a
   ⚠ row, gone after Add, never in the saved record; a crop at 390 px) and a transcript that prints
   no course numbers (`tests/fixtures/codeless-transcript.pdf`: the empty, required id box keeps the

@@ -15,6 +15,7 @@ description: Launch, drive, and screenshot the degree-audit app. Use when asked 
 | The same e2e on Safari's engine (WebKit) | `E2E_BROWSER=webkit npm run e2e` (= `npm run e2e:webkit`) → `.e2e-out/webkit/` |
 | One-time WebKit setup per Mac | `npx playwright-core install webkit` (≈100 MB, into `~/Library/Caches/ms-playwright/`) |
 | The same e2e on Firefox (Gecko) | `E2E_BROWSER=firefox npm run e2e` (= `npm run e2e:firefox`) → `.e2e-out/firefox/` — the installed Firefox, no setup |
+| The same e2e in REAL Safari | `E2E_BROWSER=safari npm run e2e` (= `npm run e2e:safari`) → `.e2e-out/safari/` — needs Safari → Settings → Developer → "Allow remote automation" once, an unlocked screen, and its window left alone |
 | Two runs side by side | `E2E_PORT=<port>` (preview server, default 4273) and `E2E_DEBUG_PORT=<port>` (Chrome's DevTools port, default 9333) |
 | One driver only, while iterating | `E2E_ONLY=<substring of the driver name> npm run e2e` (e.g. `E2E_ONLY=access`) |
 | Unit/scenario tests (no browser) | `npm test` |
@@ -48,6 +49,13 @@ decision said 560 — an 1100 px window (preview 582 px) showed two-line rows in
   same translated commands; print media is emulated by swapping `print` and `screen` in the
   page's own media queries through the CSSOM (BiDi has no media emulation), so
   `matchMedia('print')` still answers false. A native alert/confirm is dismissed and logged.
+- **Real Safari (`E2E_BROWSER=safari`, 2026-10-10)** — `scripts/e2e/safari.mjs` starts
+  `safaridriver` (part of macOS) and drives Safari's automation window over classic WebDriver:
+  one session, a tab per driver, `evalJs` as an indirect eval in Execute Async Script, print
+  media swapped as for Firefox, a file input given its path by Element Send Keys (a DataTransfer
+  fallback). Not headless; the screen must be unlocked and the window visible (the run checks that
+  Safari draws frames and stops at once if not); 336 px is Safari's narrowest window; one Safari
+  run at a time (default port 4444, `E2E_DEBUG_PORT` moves it).
   Edge, Opera and Brave are Chromium (the Chrome run is their engine); every iOS browser is
   WebKit. Real Safari can be scripted only after `safaridriver --enable` (an admin password,
   once per Mac) — the harness does not use it.

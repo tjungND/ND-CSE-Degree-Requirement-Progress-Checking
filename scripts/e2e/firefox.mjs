@@ -248,7 +248,7 @@ function fromRemote(v) {
 // CDP key names (what the drivers pass as `key`) → WebDriver's key values.
 // A printable key is its own character; the rest come from the WebDriver
 // spec's table. \uE006 is the main Enter key (\uE007 would be the keypad's).
-const WEBDRIVER_KEYS = {
+export const WEBDRIVER_KEYS = {
   Tab: '\uE004',
   Enter: '\uE006',
   Escape: '\uE00C',
@@ -269,7 +269,7 @@ const WEBDRIVER_KEYS = {
   Alt: '\uE00A',
   Meta: '\uE03D',
 };
-const webdriverKey = (key) => {
+export const webdriverKey = (key) => {
   if (typeof key === 'string' && [...key].length === 1) return key;
   if (key in WEBDRIVER_KEYS) return WEBDRIVER_KEYS[key];
   throw new Error(`firefox session: no WebDriver key for "${key}" — add it to WEBDRIVER_KEYS in scripts/e2e/firefox.mjs`);
@@ -290,7 +290,7 @@ const webdriverKey = (key) => {
 // from script still answers false (the app keys nothing on it — its
 // beforeprint handlers are driven by the drivers' own events), and a
 // cross-origin stylesheet cannot be read (the app has none).
-const PRINT_MEDIA_ON = `(() => {
+export const PRINT_MEDIA_ON = `(() => {
   if (window.__e2ePrintMedia) return window.__e2ePrintMedia.length;
   const swapped = [];
   const swapQuery = (q) => q.replace(/^(\\s*(?:not\\s+|only\\s+)?)(print|screen)\\b/i, (_, pre, type) => pre + (type.toLowerCase() === 'print' ? 'screen' : 'print'));
@@ -327,7 +327,7 @@ const PRINT_MEDIA_ON = `(() => {
   window.__e2ePrintMedia = swapped;
   return swapped.length;
 })()`;
-const PRINT_MEDIA_OFF = `(() => {
+export const PRINT_MEDIA_OFF = `(() => {
   for (const [list, text] of window.__e2ePrintMedia ?? []) list.mediaText = text;
   delete window.__e2ePrintMedia;
   return true;

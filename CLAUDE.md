@@ -114,7 +114,8 @@ it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 
 - `tests/` — **node's built-in runner** (`node --test`; that's why relative imports carry `.ts`
   extensions). One JSON fixture per student scenario in `tests/scenarios/`; add a scenario for
   every bug fixed. `npm run e2e` drives real headless Chrome, `E2E_BROWSER=webkit npm run e2e`
-  Safari's engine and `E2E_BROWSER=firefox npm run e2e` Firefox through the same drivers (see
+  Safari's engine, `E2E_BROWSER=firefox npm run e2e` Firefox and `E2E_BROWSER=safari npm run e2e`
+  real Safari (its window opens; the Mac must be unlocked) through the same drivers (see
   `.claude/skills/run-app/`).
 - `scripts/sync-sheet.ts` + `.github/workflows/` — six-hourly sheet snapshot (rewritten, committed
   and redeployed only when the sheet content changed), CI tests, Pages deploy.

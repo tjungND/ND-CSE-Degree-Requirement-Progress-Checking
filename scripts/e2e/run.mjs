@@ -11,6 +11,11 @@
 //                                    screenshots in .e2e-out/firefox/. FIREFOX_BIN overrides
 //                                    the binary. Edge, Opera and Brave are Chromium — the
 //                                    Chrome run covers their engine.
+//   E2E_BROWSER=safari npm run e2e   REAL Safari (not headless: its automation window opens;
+//     (= npm run e2e:safari)         do not click into it) over classic WebDriver through
+//                                    safaridriver (scripts/e2e/safari.mjs) and the SAME drivers;
+//                                    screenshots in .e2e-out/safari/. One-time setup: Safari →
+//                                    Settings → Developer → "Allow remote automation".
 //   E2E_ONLY=<substring>             run a single driver while iterating (e.g. E2E_ONLY=access)
 //   E2E_BUILD=1                      rebuild dist/ first even if it looks up to date
 //   E2E_PORT=<port>                  the preview server's port (default 4273), so runs of
@@ -31,8 +36,8 @@ import { driveTranscript } from './drive-transcript.mjs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const browserKind = (process.env.E2E_BROWSER ?? 'chrome').toLowerCase();
-if (!['chrome', 'webkit', 'firefox'].includes(browserKind)) {
-  console.error(`E2E_BROWSER must be "chrome" (the default), "webkit" or "firefox", not "${process.env.E2E_BROWSER}".`);
+if (!['chrome', 'webkit', 'firefox', 'safari'].includes(browserKind)) {
+  console.error(`E2E_BROWSER must be "chrome" (the default), "webkit", "firefox" or "safari", not "${process.env.E2E_BROWSER}".`);
   process.exit(2);
 }
 
@@ -49,9 +54,10 @@ const portFrom = (name, fallback) => {
 const PREVIEW_PORT = portFrom('E2E_PORT', 4273); // not 4173, so a dev's own preview keeps running
 // Chrome's DevTools port, or Firefox's WebDriver BiDi port (0: Firefox picks a
 // free one and says which). WebKit is launched by Playwright, which needs none.
-const DEBUG_PORT = portFrom('E2E_DEBUG_PORT', browserKind === 'firefox' ? 0 : 9333);
-if (browserKind === 'chrome' && DEBUG_PORT === 0) {
-  console.error('E2E_DEBUG_PORT=0 works for Firefox only; give Chrome a real port.');
+// safaridriver's port for Safari (default 4444).
+const DEBUG_PORT = portFrom('E2E_DEBUG_PORT', browserKind === 'firefox' ? 0 : browserKind === 'safari' ? 4444 : 9333);
+if ((browserKind === 'chrome' || browserKind === 'safari') && DEBUG_PORT === 0) {
+  console.error('E2E_DEBUG_PORT=0 works for Firefox only; give Chrome or Safari a real port.');
   process.exit(2);
 }
 
@@ -75,6 +81,12 @@ if (await answers(`http://localhost:${PREVIEW_PORT}/`)) {
 }
 if (browserKind === 'chrome' && (await answers(`http://127.0.0.1:${DEBUG_PORT}/json/version`))) {
   console.error(`Port ${DEBUG_PORT} is already in use by another browser — set E2E_DEBUG_PORT to a free one.`);
+  process.exit(2);
+}
+// Safari runs one automation session at a time: a safaridriver already
+// answering is another run's (or a stray one) — say so instead of failing later.
+if (browserKind === 'safari' && (await answers(`http://localhost:${DEBUG_PORT}/status`))) {
+  console.error(`Port ${DEBUG_PORT} is already in use (another Safari run?) — Safari drives one session at a time; wait for it, or set E2E_DEBUG_PORT.`);
   process.exit(2);
 }
 
@@ -142,6 +154,7 @@ if (buildReason) {
 const children = [];
 let webkitBrowser; // closed in the finally below (Playwright owns that process, not `children`)
 let firefoxBrowser; // closed in the finally below; its process is also in `children`
+let safariBrowser; // closed in the finally below; safaridriver is also in `children`
 const cleanup = () => {
   for (const c of children) {
     try {
@@ -190,6 +203,14 @@ try {
     children.push(firefoxBrowser.process);
     console.log(`headless Firefox ${firefoxBrowser.version} up (WebDriver BiDi, ${firefoxBrowser.url})`);
     openSessionFor = () => firefoxBrowser.openSession(outDir);
+  } else if (browserKind === 'safari') {
+    // Imported lazily, like WebKit and Firefox. Real Safari, in its automation
+    // window; each driver gets a tab of one WebDriver session.
+    const { launchSafari } = await import('./safari.mjs');
+    safariBrowser = await launchSafari({ port: DEBUG_PORT });
+    children.push(safariBrowser.process);
+    console.log(`Safari ${safariBrowser.version} up (WebDriver, safaridriver on :${DEBUG_PORT}) — do not click into its window`);
+    openSessionFor = () => safariBrowser.openSession(outDir);
   } else {
     // One profile per port: a second Chrome on the same profile would hand its
     // tabs to the first and quit. Emptied first, as WebKit's context and
@@ -264,6 +285,7 @@ try {
 } finally {
   if (webkitBrowser) await webkitBrowser.close().catch(() => {});
   if (firefoxBrowser) await firefoxBrowser.close().catch(() => {});
+  if (safariBrowser) await safariBrowser.close().catch(() => {});
   cleanup();
 }
 

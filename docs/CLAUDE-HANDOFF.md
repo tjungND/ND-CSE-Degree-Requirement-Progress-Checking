@@ -2170,6 +2170,13 @@ pure half (tests: `tests/simulation.test.ts`); the plumbing is in `src/ui/app.ts
   a throwaway profile), screenshots in `.e2e-out/firefox/`. Run it with WebKit's whenever layout
   changed: Firefox alone draws a number box's spinner at all times, and alone printed the
   report's folds open. `E2E_PORT` / `E2E_DEBUG_PORT` move the ports.
+- `E2E_BROWSER=safari npm run e2e` (or `npm run e2e:safari`, 2026-10-10) — REAL Safari over
+  classic WebDriver through `safaridriver` (`scripts/e2e/safari.mjs`; one session, a tab per
+  driver; print media emulated as in Firefox; evalJs is an indirect eval inside Execute Async
+  Script). Needs "Allow remote automation" (Safari → Settings → Developer) once per Mac, an
+  unlocked screen and the automation window left visible (it stops at once if Safari draws no
+  frames); the window's 336 px minimum makes the 320 px checks measure 336 px. First full run
+  2026-10-10, Safari 26.6.2: all four drivers pass.
 - `npm run sync-sheet` — fetches the live sheet, prints its diagnostics, and rewrites the
   snapshot only if the sheet content changed (it says which tabs).
 - Read screenshots you take. A wrong verdict is easier to spot in the rendered report than in
